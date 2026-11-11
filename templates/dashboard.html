@@ -1,14 +1,88 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IT-Logic sklep komputerowy</title>
+    <title>IT-Logic – sklep komputerowy</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; font-family: Arial, sans-serif; background: #fff; }
+        body { min-height: 100vh; }
+        .topbar {
+            background: #f3f4f6;
+            color: #374151;
+            text-align: center;
+            padding: 8px 12px;
+            font-size: 14px;
+        }
+        .navbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 18px 24px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #fff;
+            flex-wrap: wrap;
+        }
+        .brand-box { line-height: 1.1; }
+        .brand {
+            font-size: 32px;
+            font-weight: 700;
+            color: #111827;
+            display: block;
+        }
+        .brand-sub { color: #4b5563; font-size: 12px; }
+        .search {
+            flex: 1 1 300px;
+            max-width: 700px;
+            padding: 12px 16px;
+            border-radius: 999px;
+            border: 1px solid #d1d5db;
+            font-size: 16px;
+        }
+        .user-actions {
+            display: flex;
+            gap: 18px;
+            font-weight: 600;
+            color: #111827;
+            white-space: nowrap;
+        }
+        .menu {
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+            padding: 14px 24px 18px;
+            font-weight: 600;
+            color: #111827;
+        }
+    </style>
 </head>
 <body>
-    <div id="root"></div>
-    
-    <script type="module" src="http://localhost:5173/src/@vite/client"></script>
-    <script type="module" src="http://localhost:5173/src/main.jsx"></script>
+    <div class="topbar">Darmowa dostawa od 299 zł * Zamów do 16:00, a paczka zostanie wysłana tego samego dnia</div>
+
+    <nav class="navbar">
+        <div class="brand-box">
+            <span class="brand">IT-Logic</span>
+            <div class="brand-sub">Technologia po twojemu</div>
+        </div>
+
+        <input class="search" type="search" placeholder="Czego szukasz? Laptop, karta graficzna, akcesoria..." />
+
+        <div class="user-actions">
+            <span>Moje konto</span>
+            <span>Mój koszyk</span>
+        </div>
+    </nav>
+
+    <div class="menu">
+        <span>Laptopy</span>
+        <span>Komputery</span>
+        <span>Podzespoły</span>
+        <span>Monitory</span>
+        <span>Gaming</span>
+        <span>Akcesoria</span>
+        <span>Start home</span>
+    </div>
 </body>
 </html>
