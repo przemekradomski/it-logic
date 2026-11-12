@@ -1,4 +1,4 @@
-function Navbar() {
+function Navbar({ items = [], selectedCategory, onSelectCategory }) {
   return (
     <nav
       style={{
@@ -66,16 +66,32 @@ function Navbar() {
           color: '#111827',
         }}
       >
-        <span>Laptopy</span>
-        <span>Komputery</span>
-        <span>Podzespoły</span>
-        <span>Monitory</span>
-        <span>Gaming</span>
-        <span>Akcesoria</span>
-        <span>Start home</span>
+        {items.map((item) => {
+          const isActive = selectedCategory === item;
+
+          return (
+            <button
+              key={item}
+              type="button"
+              onClick={() => onSelectCategory?.(item)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: isActive ? '#6058f5' : '#111827',
+                borderBottom: isActive ? '2px solid #6058f5' : '2px solid transparent',
+                padding: '8px 0',
+                cursor: 'pointer',
+                fontWeight: 600,
+                transition: 'all 0.2s ease',
+              }}
+            >
+              {item}
+            </button>
+          );
+        })}
       </div>
     </nav>
-  )
+  );
 }
 
-export default Navbar
+export default Navbar;

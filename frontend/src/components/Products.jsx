@@ -1,4 +1,3 @@
-
 const products = [
   {
     name: 'ASUS TUF Gaming A15',
@@ -26,7 +25,9 @@ const products = [
   }
 ];
 
-function Products() {
+function Products({ products = [], selectedCategory, fallbackMessage = 'Brak na magazynie' }) {
+  const hasProducts = products.length > 0;
+
   return (
     <section className="products-section py-5">
       <div className="container">
@@ -34,43 +35,49 @@ function Products() {
           Sprawdzone przez graczy. Wybrane dla Ciebie.
         </p>
 
-        <h2>Bestsellery, które robią różnicę</h2>
+        <h2>{selectedCategory || 'Bestsellery'}</h2>
 
-        <div className="row g-3 mt-3">
-          {products.map((product, index) => (
-            <div className="col-12 col-sm-6 col-lg-3" key={index}>
-              <div className="product-card">
+        {!hasProducts ? (
+          <div className="mt-4 p-4 border rounded bg-white text-center text-muted">
+            <strong>{fallbackMessage}</strong>
+          </div>
+        ) : (
+          <div className="row g-3 mt-3">
+            {products.map((product, index) => (
+              <div className="col-12 col-sm-6 col-lg-3" key={product.id ?? index}>
+                <div className="product-card">
 
-                <span className="badge-sale">OKAZJA</span>
+                  <span className="badge-sale">OKAZJA</span>
 
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="product-img"
-                />
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    className="product-img"
+                  />
 
-                <small>{product.category}</small>
+                  <small>{product.category}</small>
 
-                <h5>{product.name}</h5>
+                  <h5>{product.name}</h5>
 
-                <div className="stars">★★★★★ (48)</div>
+                  <div className="stars">★★★★★ (48)</div>
 
-                <h4>{product.price}</h4>
+                  <h4>{product.price}</h4>
 
-                <div className="d-flex justify-content-between">
-                  <small className="text-success">
-                    Dostępny • wysyłka w 24 h
-                  </small>
+                  <div className="d-flex justify-content-between">
+                    <small className="text-success">
+                      Dostępny • wysyłka w 24 h
+                    </small>
 
-                  <button className="cart-btn">
-                    <i className="bi bi-cart3"></i>
-                  </button>
+                    <button className="cart-btn">
+                      <i className="bi bi-cart3"></i>
+                    </button>
+                  </div>
+
                 </div>
-
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
