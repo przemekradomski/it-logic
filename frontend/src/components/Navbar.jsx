@@ -33,8 +33,8 @@ function Navbar() {
         }}
       >
         <div>
-          <div style={{ fontSize: '32px', fontWeight: 700, color: '#111827' }}>IT-Logic</div>
-          <small style={{ color: '#4b5563' }}>Technologia po twojemu</small>
+          {/* <div style={{ fontSize: '32px', fontWeight: 700, color: '#111827' }}>IT-Logic</div> */}
+          {/* <small style={{ color: '#4b5563' }}>Technologia po twojemu</small> */}
         </div>
 
         <input
