@@ -1,19 +1,12 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IT-Logic</title>
-    <style>
-        html, body, #root {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            min-height: 100%;
-            font-family: Arial, sans-serif;
-            background: #fff;
-        }
-    </style>
+    <link rel="icon" type="image/svg+xml" href="{% static 'favicon.svg' %}">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/assets/main-D7AMaj87.css">
 </head>
 <body>
     <div id="root"></div>
@@ -22,7 +15,7 @@
         <script type="module" src="{{ vite_server_url }}/@vite/client"></script>
         <script type="module" src="{{ vite_server_url }}/src/main.jsx"></script>
     {% else %}
-        <script type="module" src="/static/js/main.js"></script>
+        <script type="module" src="{% static 'js/main.js' %}"></script>
     {% endif %}
 </body>
 </html>

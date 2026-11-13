@@ -1,4 +1,3 @@
-
 body {
   font-family: Arial, sans-serif;
   color: #182033;
@@ -40,10 +39,49 @@ body {
 .hero {
   background: #10131e;
   color: white;
+  overflow: hidden;
+}
+
+.hero .container-fluid {
+  padding: 0;
 }
 
 .hero-content {
   padding: 65px;
+}
+
+.hero-visual {
+  position: relative;
+  width: 100%;
+  min-height: 500px;
+  height: 100%;
+  background:
+    radial-gradient(circle at 20% 25%, rgba(127, 100, 255, 0.8), transparent 18%),
+    radial-gradient(circle at 75% 30%, rgba(54, 214, 255, 0.25), transparent 22%),
+    linear-gradient(135deg, #1d2233 0%, #10131e 60%, #0b0d15 100%);
+  border-radius: 24px 0 0 24px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.hero-visual::before {
+  content: "";
+  position: absolute;
+  inset: 10% 12% 12% 18%;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #2a2f40 0%, #171b2a 100%);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.38);
+}
+
+.hero-visual::after {
+  content: "";
+  position: absolute;
+  width: 72%;
+  height: 18%;
+  left: 20%;
+  bottom: 12%;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #4761ff 0%, #8a6bff 50%, #b7a4ff 100%);
+  box-shadow: 0 20px 40px rgba(96, 88, 245, 0.5);
 }
 
 .hero h1 {
@@ -157,6 +195,11 @@ body {
 @media (max-width: 768px) {
   .hero-content {
     padding: 30px;
+  }
+
+  .hero-visual {
+    min-height: 250px;
+    border-radius: 20px 20px 0 0;
   }
 
   .hero h1 {

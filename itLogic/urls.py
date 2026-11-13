@@ -16,10 +16,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from sklep_komputerowy.views import dashboard
+from sklep_komputerowy.views import dashboard, api_products
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', dashboard, name='home'),
     path('dashboard/', dashboard, name='dashboard'),
+    path('api/products/', api_products, name='api_products'),
 ]
