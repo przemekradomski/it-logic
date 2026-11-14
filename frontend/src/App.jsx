@@ -373,6 +373,18 @@ function App() {
                 </label>
 
                 <label>
+                  Numer telefonu
+                  <input 
+                  type="tel"
+                  name="phone"
+                  value={registerForm.phone}
+                  onChange={handleRegisterChange}
+                  placeholder="123-456-789"
+                  required
+                  />
+                </label>
+
+                <label>
                   Hasło
                   <input
                     type="password"
