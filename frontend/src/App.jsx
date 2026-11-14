@@ -12,11 +12,51 @@ const initialCart = [
   { id: 2, name: 'Monitor Samsung 27"', price: 999, quantity: 1 },
 ];
 
-const initialUsers = [
-  { email: 'admin@itlogic.pl', password: 'admin123', role: 'admin', label: 'Administrator' },
-  { email: 'seller@itlogic.pl', password: 'seller123', role: 'seller', label: 'Sprzedawca' },
-  { email: 'klient@itlogic.pl', password: 'client123', role: 'buyer', label: 'Klient' },
-];
+
+// Django session authentication: requests use cookies and CSRF protection.
+function getCookie(name) {
+  const cookie = document.cookie
+    .split('; ')
+    .find((item) => item.startsWith(`${name}=`));
+  return cookie ? decodeURIComponent(cookie.split('=').slice(1).join('=')) : null;
+}
+
+async function apiRequest(url, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+  const headers = { ...(options.headers || {}) };
+
+  if (method !== 'GET' && method !== 'HEAD') {
+    // This endpoint should be decorated with @ensure_csrf_cookie in Django.
+    if (!getCookie('csrftoken')) {
+      await fetch('/api/auth/csrf/', { credentials: 'include' });
+    }
+    const csrfToken = getCookie('csrftoken');
+    if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+    if (options.body && !(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    method,
+    headers,
+    credentials: 'include',
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || data.error || data.message || 'Wystąpił błąd. Spróbuj ponownie.');
+  }
+  return data;
+}
+
+const roleLabels = {
+  customer: 'Klient',
+  buyer: 'Klient',
+  seller: 'Sprzedawca',
+  admin: 'Administrator',
+};
 
 function App() {
   const [selectedCategory, setSelectedCategory] = useState('Laptopy');
@@ -27,7 +67,6 @@ function App() {
   const [showCartPanel, setShowCartPanel] = useState(false);
   const [user, setUser] = useState(null);
   const [cart, setCart] = useState(initialCart);
-  const [users, setUsers] = useState(initialUsers);
   const [authMode, setAuthMode] = useState('login');
   const [loginForm, setLoginForm] = useState({
     email: '',
@@ -37,13 +76,7 @@ function App() {
     name: '',
     email: '',
     password: '',
-    role: 'seller',
   });
-  const [sellerList, setSellerList] = useState([
-    { id: 1, name: 'Anna Kowalska', status: 'aktywny' },
-    { id: 2, name: 'Piotr Nowak', status: 'zablokowany' },
-    { id: 3, name: 'Marta Wiśniewska', status: 'aktywny' },
-  ]);
 
   useEffect(() => {
     fetch('/api/products/')
@@ -56,6 +89,22 @@ function App() {
         console.error('Błąd pobierania danych:', error);
         setLoading(false);
       });
+  }, []);
+
+  // Przy odświeżeniu strony odtwarzamy użytkownika z sesji Django.
+  useEffect(() => {
+    apiRequest('/api/auth/me/')
+      .then((data) => {
+        const account = data.user || data;
+        if (account && account.email) {
+          setUser({
+            email: account.email,
+            role: account.role,
+            label: account.label || roleLabels[account.role] || 'Użytkownik',
+          });
+        }
+      })
+      .catch(() => setUser(null));
   }, []);
 
   const visibleProducts = products.filter(
@@ -74,69 +123,70 @@ function App() {
     setRegisterForm((previous) => ({ ...previous, [name]: value }));
   };
 
-  const handleLoginSubmit = (event) => {
+  const handleLoginSubmit = async (event) => {
     event.preventDefault();
 
-    if (!loginForm.email || !loginForm.password) {
-      return;
+    if (!loginForm.email || !loginForm.password) return;
+
+    try {
+      const data = await apiRequest('/api/auth/login/', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: loginForm.email.trim(),
+          password: loginForm.password,
+        }),
+      });
+
+      const account = data.user || data;
+      setUser({
+        email: account.email,
+        role: account.role,
+        label: account.label || roleLabels[account.role] || 'Użytkownik',
+      });
+      setShowLoginModal(false);
+      setShowAccountPanel(true);
+      setLoginForm({ email: '', password: '' });
+    } catch (error) {
+      alert(error.message || 'Nieprawidłowy email lub hasło.');
     }
-
-    const matchedUser = users.find(
-      (account) =>
-        account.email.toLowerCase() === loginForm.email.toLowerCase() &&
-        account.password === loginForm.password
-    );
-
-    if (!matchedUser) {
-      alert('Nieprawidłowy email lub hasło.');
-      return;
-    }
-
-    setUser({
-      email: matchedUser.email,
-      role: matchedUser.role,
-      label: matchedUser.label,
-    });
-
-    setShowLoginModal(false);
-    setShowAccountPanel(true);
-    setLoginForm({ email: '', password: '' });
   };
 
-  const handleRegisterSubmit = (event) => {
+  const handleRegisterSubmit = async (event) => {
     event.preventDefault();
 
-    if (!registerForm.name || !registerForm.email || !registerForm.password) {
+    if (!registerForm.name || !registerForm.email || !registerForm.password) return;
+    if (registerForm.password.length < 8) {
+      alert('Hasło musi mieć co najmniej 8 znaków.');
       return;
     }
 
-    const emailExists = users.some(
-      (account) => account.email.toLowerCase() === registerForm.email.toLowerCase()
-    );
+    try {
+      await apiRequest('/api/auth/register/', {
+        method: 'POST',
+        body: JSON.stringify({
+          username: registerForm.name.trim(),
+          email: registerForm.email.trim(),
+          password: registerForm.password,
+        }),
+      });
 
-    if (emailExists) {
-      alert('Użytkownik z tym adresem email już istnieje.');
-      return;
+      alert('Konto klienta zostało utworzone. Możesz się zalogować.');
+      setLoginForm({ email: registerForm.email, password: '' });
+      setRegisterForm({ name: '', email: '', password: '' });
+      setAuthMode('login');
+    } catch (error) {
+      alert(error.message || 'Nie udało się utworzyć konta.');
     }
-
-    const newSeller = {
-      email: registerForm.email,
-      password: registerForm.password,
-      role: 'seller',
-      label: 'Sprzedawca',
-      name: registerForm.name,
-    };
-
-    setUsers((previous) => [newSeller, ...previous]);
-    setLoginForm({ email: registerForm.email, password: registerForm.password });
-    setAuthMode('login');
-    setRegisterForm({ name: '', email: '', password: '', role: 'seller' });
-    setShowLoginModal(true);
   };
 
-  const handleLogout = () => {
-    setUser(null);
-    setShowAccountPanel(false);
+  const handleLogout = async () => {
+    try {
+      await apiRequest('/api/auth/logout/', { method: 'POST', body: JSON.stringify({}) });
+      setUser(null);
+      setShowAccountPanel(false);
+    } catch (error) {
+      alert(error.message || 'Nie udało się wylogować.');
+    }
   };
 
   const toggleAccountPanel = () => {
@@ -152,30 +202,6 @@ function App() {
   const toggleCartPanel = () => {
     setShowCartPanel((previous) => !previous);
     setShowAccountPanel(false);
-  };
-
-  const toggleSellerStatus = (id) => {
-    setSellerList((previous) =>
-      previous.map((seller) =>
-        seller.id === id
-          ? {
-              ...seller,
-              status: seller.status === 'aktywny' ? 'zablokowany' : 'aktywny',
-            }
-          : seller
-      )
-    );
-  };
-
-  const registerSeller = () => {
-    setSellerList((previous) => [
-      {
-        id: Date.now(),
-        name: `Nowy sprzedawca ${previous.length + 1}`,
-        status: 'aktywny',
-      },
-      ...previous,
-    ]);
   };
 
   return (
@@ -259,37 +285,6 @@ function App() {
         </div>
       )}
 
-      {user?.role === 'admin' && (
-        <section className="admin-panel container my-4">
-          <div className="admin-panel-header d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <div>
-              <p className="eyebrow">Panel administratora</p>
-              <h3>Zarządzanie sprzedawcami</h3>
-            </div>
-            <button type="button" className="primary-button" onClick={registerSeller}>
-              Zarejestruj sprzedawcę
-            </button>
-          </div>
-
-          <div className="seller-list">
-            {sellerList.map((seller) => (
-              <div key={seller.id} className="seller-row">
-                <div>
-                  <strong>{seller.name}</strong>
-                  <small>{seller.status === 'aktywny' ? 'Aktywny' : 'Zablokowany'}</small>
-                </div>
-                <button
-                  type="button"
-                  className={seller.status === 'aktywny' ? 'danger-button' : 'secondary-button'}
-                  onClick={() => toggleSellerStatus(seller.id)}
-                >
-                  {seller.status === 'aktywny' ? 'Zablokuj' : 'Odblokuj'}
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       <Hero />
       <Categories />
@@ -308,7 +303,7 @@ function App() {
         <div className="modal-backdrop" onClick={() => setShowLoginModal(false)}>
           <div className="login-modal" onClick={(event) => event.stopPropagation()}>
             <div className="login-header">
-              <h3>{authMode === 'login' ? 'Zaloguj się' : 'Zarejestruj sprzedawcę'}</h3>
+              <h3>{authMode === 'login' ? 'Zaloguj się' : 'Utwórz konto klienta'}</h3>
               <button type="button" className="close-button" onClick={() => setShowLoginModal(false)}>
                 ×
               </button>
@@ -354,13 +349,13 @@ function App() {
             ) : (
               <form onSubmit={handleRegisterSubmit} className="login-form">
                 <label>
-                  Imię i nazwisko
+                  Nazwa użytkownika
                   <input
                     type="text"
                     name="name"
                     value={registerForm.name}
                     onChange={handleRegisterChange}
-                    placeholder="Jan Kowalski"
+                    placeholder="jan_kowalski"
                     required
                   />
                 </label>
@@ -386,6 +381,16 @@ function App() {
                     onChange={handleRegisterChange}
                     placeholder="Podaj hasło"
                     required
+                  />
+                </label>
+                
+                <label>
+                  Powtórz hasło
+                  <input
+                    type="password"
+                    name="confirm_password"
+                    onChange={handleRegisterChange}
+                    placeholder="Powtórz hasło"                  
                   />
                 </label>
 
