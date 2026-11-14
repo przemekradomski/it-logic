@@ -7,12 +7,18 @@ export default defineConfig({
     build: {
         outDir: '../static',
         emptyOutDir: true,
+        cssCodeSplit: false,
         rollupOptions: {
             input: 'src/main.jsx',
             output: {
                 entryFileNames: 'js/main.js',
                 chunkFileNames: 'js/[name]-[hash].js',
-                assetFileNames: 'assets/[name]-[hash][extname]'
+                assetFileNames: (assetInfo) => {
+                    if (assetInfo.name && assetInfo.name.endsWith('.css')) {
+                        return 'assets/main.css';
+                    }
+                    return 'assets/[name]-[hash][extname]';
+                }
             }
         }
     },

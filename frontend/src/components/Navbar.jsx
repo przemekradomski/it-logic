@@ -1,4 +1,16 @@
-function Navbar({ items = [], selectedCategory, onSelectCategory }) {
+function Navbar({
+  items = [],
+  selectedCategory,
+  onSelectCategory,
+  user,
+  cartCount = 0,
+  onOpenLogin,
+  onToggleAccount,
+  onToggleCart,
+  onLogout,
+  isCartOpen,
+  isAccountOpen,
+}) {
   return (
     <nav
       style={{
@@ -32,10 +44,7 @@ function Navbar({ items = [], selectedCategory, onSelectCategory }) {
           flexWrap: 'wrap',
         }}
       >
-        <div>
-          {/* <div style={{ fontSize: '32px', fontWeight: 700, color: '#111827' }}>IT-Logic</div> */}
-          {/* <small style={{ color: '#4b5563' }}>Technologia po twojemu</small> */}
-        </div>
+        <div />
 
         <input
           type="search"
@@ -50,9 +59,53 @@ function Navbar({ items = [], selectedCategory, onSelectCategory }) {
           }}
         />
 
-        <div style={{ display: 'flex', gap: '18px', fontWeight: 600, color: '#111827' }}>
-          <span>Moje konto</span>
-          <span>Mój koszyk</span>
+        <div style={{ display: 'flex', gap: '18px', fontWeight: 600, color: '#111827', alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={onToggleAccount ?? onOpenLogin}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              fontWeight: 600,
+              color: isAccountOpen ? '#6058f5' : '#111827',
+              cursor: 'pointer',
+              position: 'relative',
+            }}
+          >
+            {user ? `Wyloguj (${user.label})` : 'Moje konto'}
+          </button>
+
+          <button
+            type="button"
+            onClick={onToggleCart}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              fontWeight: 600,
+              color: isCartOpen ? '#6058f5' : '#111827',
+              cursor: 'pointer',
+              position: 'relative',
+            }}
+          >
+            Mój koszyk
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: '20px',
+                height: '20px',
+                padding: '0 6px',
+                borderRadius: '999px',
+                background: '#6058f5',
+                color: '#fff',
+                fontSize: '11px',
+                marginLeft: '8px',
+              }}
+            >
+              {cartCount}
+            </span>
+          </button>
         </div>
       </div>
 
