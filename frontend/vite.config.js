@@ -6,7 +6,7 @@ export default defineConfig({
     base: '/static/',
     build: {
         outDir: '../static',
-        emptyOutDir: true,
+        emptyOutDir: false,
         cssCodeSplit: false,
         rollupOptions: {
             input: 'src/main.jsx',

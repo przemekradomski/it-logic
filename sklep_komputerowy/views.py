@@ -1,5 +1,8 @@
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from .catalog import PRODUCTS
+from .models import UserProfile
 
 
 def dashboard(request):
@@ -10,38 +13,35 @@ def dashboard(request):
 
 
 def api_products(request):
-    products = [
-        {
-            'id': 1,
-            'name': 'ASUS TUF Gaming A15',
-            'category': 'Laptopy',
-            'price': '4299,00 zł',
-            'image': '/images/laptop.jpg',
-            'inStock': True,
-        },
-        {
-            'id': 2,
-            'name': 'Gigabyte GeForce RTX 4070',
-            'category': 'Podzespoły',
-            'price': '2699,00 zł',
-            'image': '/images/gpu.jpg',
-            'inStock': True,
-        },
-        {
-            'id': 3,
-            'name': 'Samsung Odyssey G5 27"',
-            'category': 'Monitory',
-            'price': '999,00 zł',
-            'image': '/images/monitor.jpg',
-            'inStock': True,
-        },
-        {
-            'id': 4,
-            'name': 'Keychron K8 Pro',
-            'category': 'Akcesoria',
-            'price': '449,00 zł',
-            'image': '/images/keyboard.jpg',
-            'inStock': True,
-        },
-    ]
-    return JsonResponse({'products': products})
+    return JsonResponse({'products': PRODUCTS})
+
+def register(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        phone = request.POST.get('phone')
+        password = request.POST.get('password')
+        confirm_password = request.POST.get('confirm_password')
+
+    if password != confirm_password:
+        messages.error("Hasła się nie zgadzają!")
+        return redirect('register')
+    if User.objects.filter(username=username).exists():
+        messages.error('Nazwa jest już zajęta')
+        return redirect('register')
+    if User.objects.filter(email=email).exists():
+        messages.error('Adres email jest już zajęty')
+        return redirect('register')
+    if User.objects.filter(phone=phone).exists():
+        messages.error('Numer telefonu jest już zajęty')
+        return redirect('register')
+
+    UserProfile.objects.create(
+        username=username,
+        email=email,
+        phon=phone,
+        password=make_password(password),
+        created_at=timezone.now()
+    )
+
+    return render(request, 'frontend/src/App.jsx')

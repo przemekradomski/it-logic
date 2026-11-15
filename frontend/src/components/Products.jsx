@@ -25,7 +25,12 @@ const products = [
   }
 ];
 
-function Products({ products = [], selectedCategory, fallbackMessage = 'Brak na magazynie' }) {
+function Products({
+  products = [],
+  selectedCategory,
+  fallbackMessage = 'Brak na magazynie',
+  onAddToCart,
+}) {
   const hasProducts = products.length > 0;
 
   return (
@@ -68,7 +73,12 @@ function Products({ products = [], selectedCategory, fallbackMessage = 'Brak na 
                       Dostępny • wysyłka w 24 h
                     </small>
 
-                    <button className="cart-btn">
+                    <button
+                      type="button"
+                      className="cart-btn"
+                      onClick={() => onAddToCart?.(product)}
+                      aria-label={`Dodaj ${product.name} do koszyka`}
+                    >
                       <i className="bi bi-cart3"></i>
                     </button>
                   </div>

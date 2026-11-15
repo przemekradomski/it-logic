@@ -348,6 +348,25 @@ body {
   border-bottom: 1px solid #e5e7eb;
 }
 
+.cart-item-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cart-item-details span {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.cart-remove-button {
+  border: none;
+  background: transparent;
+  color: #dc2626;
+  cursor: pointer;
+  font-weight: 600;
+}
+
 .cart-summary {
   border-top: 1px solid #e5e7eb;
   padding-top: 14px;

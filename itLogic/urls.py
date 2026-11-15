@@ -16,11 +16,27 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from sklep_komputerowy.cart_views import api_cart, api_cart_add, api_cart_remove
 from sklep_komputerowy.views import dashboard, api_products
+from sklep_komputerowy.auth_views import (
+    api_csrf,
+    api_current_user,
+    api_login,
+    api_logout,
+    api_register,
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', dashboard, name='home'),
     path('dashboard/', dashboard, name='dashboard'),
     path('api/products/', api_products, name='api_products'),
+    path('api/auth/csrf/', api_csrf, name='api_csrf'),
+    path('api/auth/me/', api_current_user, name='api_current_user'),
+    path('api/auth/register/', api_register, name='api_register'),
+    path('api/auth/login/', api_login, name='api_login'),
+    path('api/auth/logout/', api_logout, name='api_logout'),
+    path('api/cart/', api_cart, name='api_cart'),
+    path('api/cart/items/', api_cart_add, name='api_cart_add'),
+    path('api/cart/items/<int:product_id>/', api_cart_remove, name='api_cart_remove'),
 ]

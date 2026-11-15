@@ -7,12 +7,6 @@ import Products from './components/Products';
 
 const navItems = ['Laptopy', 'Komputery', 'Podzespoły', 'Monitory', 'Gaming', 'Akcesoria', 'Start home'];
 
-const initialCart = [
-  { id: 1, name: 'Laptop gamingowy ASUS', price: 4299, quantity: 1 },
-  { id: 2, name: 'Monitor Samsung 27"', price: 999, quantity: 1 },
-];
-
-
 // Django session authentication: requests use cookies and CSRF protection.
 function getCookie(name) {
   const cookie = document.cookie
@@ -66,7 +60,7 @@ function App() {
   const [showAccountPanel, setShowAccountPanel] = useState(false);
   const [showCartPanel, setShowCartPanel] = useState(false);
   const [user, setUser] = useState(null);
-  const [cart, setCart] = useState(initialCart);
+  const [cart, setCart] = useState([]);
   const [authMode, setAuthMode] = useState('login');
   const [loginForm, setLoginForm] = useState({
     email: '',
@@ -76,6 +70,8 @@ function App() {
     name: '',
     email: '',
     password: '',
+    phone: '',
+    confirm_password: '',
   });
 
   useEffect(() => {
@@ -91,7 +87,7 @@ function App() {
       });
   }, []);
 
-  // Przy odświeżeniu strony odtwarzamy użytkownika z sesji Django.
+  // Restore the logged-in user and guest/user cart independently.
   useEffect(() => {
     apiRequest('/api/auth/me/')
       .then((data) => {
@@ -105,13 +101,41 @@ function App() {
         }
       })
       .catch(() => setUser(null));
+
+    apiRequest('/api/cart/')
+      .then((data) => setCart(data.items || []))
+      .catch((error) => console.error('Nie udało się wczytać koszyka:', error));
   }, []);
 
   const visibleProducts = products.filter(
     (product) => product.category === selectedCategory && product.inStock
   );
 
-  const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const cartTotal = cart.reduce((sum, item) => sum + item.priceValue * item.quantity, 0);
+
+  const handleAddToCart = async (product) => {
+    try {
+      const data = await apiRequest('/api/cart/items/', {
+        method: 'POST',
+        body: JSON.stringify({ product_id: product.id }),
+      });
+      setCart(data.items || []);
+    } catch (error) {
+      alert(error.message || 'Nie udało się dodać produktu do koszyka.');
+    }
+  };
+
+  const handleRemoveFromCart = async (productId) => {
+    try {
+      const data = await apiRequest(`/api/cart/items/${productId}/`, {
+        method: 'DELETE',
+      });
+      setCart(data.items || []);
+    } catch (error) {
+      alert(error.message || 'Nie udało się usunąć produktu z koszyka.');
+    }
+  };
 
   const handleLoginChange = (event) => {
     const { name, value } = event.target;
@@ -143,6 +167,8 @@ function App() {
         role: account.role,
         label: account.label || roleLabels[account.role] || 'Użytkownik',
       });
+      const cartData = await apiRequest('/api/cart/');
+      setCart(cartData.items || []);
       setShowLoginModal(false);
       setShowAccountPanel(true);
       setLoginForm({ email: '', password: '' });
@@ -154,9 +180,24 @@ function App() {
   const handleRegisterSubmit = async (event) => {
     event.preventDefault();
 
-    if (!registerForm.name || !registerForm.email || !registerForm.password) return;
+    if (
+      !registerForm.name ||
+      !registerForm.email ||
+      !registerForm.phone ||
+      !registerForm.password ||
+      !registerForm.confirm_password
+    ) {
+      alert('Uzupełnij wszystkie pola.');
+      return;
+    }
+
     if (registerForm.password.length < 8) {
       alert('Hasło musi mieć co najmniej 8 znaków.');
+      return;
+    }
+
+    if (registerForm.password !== registerForm.confirm_password) {
+      alert('Hasła się nie zgadzają!');
       return;
     }
 
@@ -166,13 +207,21 @@ function App() {
         body: JSON.stringify({
           username: registerForm.name.trim(),
           email: registerForm.email.trim(),
+          phone: registerForm.phone.trim(),
           password: registerForm.password,
+          confirm_password: registerForm.confirm_password,
         }),
       });
 
       alert('Konto klienta zostało utworzone. Możesz się zalogować.');
       setLoginForm({ email: registerForm.email, password: '' });
-      setRegisterForm({ name: '', email: '', password: '' });
+      setRegisterForm({
+        name: '',
+        email: '',
+        phone: '',
+        password: '',
+        confirm_password: '',
+      });
       setAuthMode('login');
     } catch (error) {
       alert(error.message || 'Nie udało się utworzyć konta.');
@@ -183,6 +232,7 @@ function App() {
     try {
       await apiRequest('/api/auth/logout/', { method: 'POST', body: JSON.stringify({}) });
       setUser(null);
+      setCart([]);
       setShowAccountPanel(false);
     } catch (error) {
       alert(error.message || 'Nie udało się wylogować.');
@@ -211,7 +261,7 @@ function App() {
         selectedCategory={selectedCategory}
         onSelectCategory={setSelectedCategory}
         user={user}
-        cartCount={cart.length}
+        cartCount={cartCount}
         onOpenLogin={() => setShowLoginModal(true)}
         onToggleAccount={toggleAccountPanel}
         onToggleCart={toggleCartPanel}
@@ -254,8 +304,18 @@ function App() {
             {cart.length > 0 ? (
               cart.map((item) => (
                 <div key={item.id} className="cart-item-row">
-                  <span>{item.name}</span>
-                  <strong>{item.price.toLocaleString('pl-PL')} zł</strong>
+                  <div className="cart-item-details">
+                    <strong>{item.name}</strong>
+                    <span>{item.quantity} × {item.price}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="cart-remove-button"
+                    onClick={() => handleRemoveFromCart(item.id)}
+                    aria-label={`Usuń ${item.name} z koszyka`}
+                  >
+                    Usuń
+                  </button>
                 </div>
               ))
             ) : (
@@ -265,7 +325,7 @@ function App() {
 
           <div className="cart-summary">
             <span>Łącznie</span>
-            <strong>{cartTotal.toLocaleString('pl-PL')} zł</strong>
+            <strong>{cartTotal.toLocaleString('pl-PL', { minimumFractionDigits: 2 })} zł</strong>
           </div>
 
           <button type="button" className="primary-button full-width">
@@ -296,6 +356,7 @@ function App() {
           products={visibleProducts}
           selectedCategory={selectedCategory}
           fallbackMessage="Brak na magazynie"
+          onAddToCart={handleAddToCart}
         />
       )}
 
