@@ -4,6 +4,7 @@ import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import Categories from './components/Categories';
 import Products from './components/Products';
+import Foother from './components/foother';
 
 const navItems = ['Laptopy', 'Komputery', 'Podzespoły', 'Monitory', 'Gaming', 'Akcesoria', 'Start home'];
 
@@ -360,6 +361,8 @@ function App() {
         />
       )}
 
+
+      <Foother />
       {showLoginModal && (
         <div className="modal-backdrop" onClick={() => setShowLoginModal(false)}>
           <div className="login-modal" onClick={(event) => event.stopPropagation()}>
