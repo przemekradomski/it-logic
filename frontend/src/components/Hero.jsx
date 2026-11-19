@@ -97,8 +97,7 @@ function Hero() {
 
           <div className="col-md-6 p-0">
             <div style={styles.heroVisual} aria-label="Komputer gamingowy">
-              <div style={styles.heroVisualBefore} />
-              <div style={styles.heroVisualAfter} />
+              <img src="images/komp.png"/>
             </div>
           </div>
         </div>

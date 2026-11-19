@@ -24,6 +24,9 @@ from sklep_komputerowy.auth_views import (
     api_login,
     api_logout,
     api_register,
+    api_admin_sellers,
+    api_admin_create_seller,
+    api_admin_delete_seller,
 )
 
 urlpatterns = [
@@ -36,6 +39,13 @@ urlpatterns = [
     path('api/auth/register/', api_register, name='api_register'),
     path('api/auth/login/', api_login, name='api_login'),
     path('api/auth/logout/', api_logout, name='api_logout'),
+    path('api/admin/sellers/', api_admin_sellers, name='api_admin_sellers'),
+    path('api/admin/sellers/create/', api_admin_create_seller, name='api_admin_create_seller'),
+    path(
+        'api/admin/sellers/<int:seller_id>/delete/',
+        api_admin_delete_seller,
+        name='api_admin_delete_seller',
+    ),
     path('api/cart/', api_cart, name='api_cart'),
     path('api/cart/items/', api_cart_add, name='api_cart_add'),
     path('api/cart/items/<int:product_id>/', api_cart_remove, name='api_cart_remove'),

@@ -5,7 +5,8 @@ from django.db import models
 class UserProfile(models.Model):
     ROLE_CHOICES = [
         ('customer', 'Customer'),
-        ('seller', 'Seller')
+        ('seller', 'Seller'),
+        ('admin', 'Administrator'),
     ]
 
     user_id = models.AutoField(primary_key=True)

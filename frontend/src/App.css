@@ -248,6 +248,16 @@ body {
   margin-bottom: 18px;
 }
 
+.admin-seller-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-items: end;
+}
+
+.admin-seller-form > div {
+  grid-column: 1 / -1;
+}
+
 .seller-list {
   display: flex;
   flex-direction: column;
