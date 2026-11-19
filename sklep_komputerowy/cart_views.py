@@ -5,9 +5,21 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
-from .catalog import PRODUCTS_BY_ID
-from .models import Cart, CartItem, UserProfile
+from .models import Cart, CartItem, SellerProduct, UserProfile
 from .session_keys import AUTH_SESSION_KEY, GUEST_CART_SESSION_KEY
+
+
+def _seller_products_by_ids(product_ids):
+    product_ids = {
+        product_id for product_id in product_ids
+        if product_id >= SellerProduct.API_ID_OFFSET
+    }
+    seller_ids = {
+        product_id - SellerProduct.API_ID_OFFSET
+        for product_id in product_ids
+    }
+    products = SellerProduct.objects.filter(pk__in=seller_ids)
+    return {product.api_id: product for product in products}
 
 
 def _current_profile(request):
@@ -37,15 +49,18 @@ def _get_cart(profile, create=False, lock=False):
 def _cart_data(cart=None, guest_items=None):
     items = []
     if guest_items is not None:
+        products = _seller_products_by_ids(guest_items)
         for product_id, quantity in guest_items.items():
-            product = PRODUCTS_BY_ID.get(product_id)
+            product = products.get(product_id)
             if product is not None:
-                items.append({**product, 'quantity': quantity})
+                items.append({**product.to_api_data(), 'quantity': quantity})
     elif cart is not None:
-        for item in CartItem.objects.filter(cart=cart).order_by('cart_item_id'):
-            product = PRODUCTS_BY_ID.get(item.product_id)
+        cart_items = list(CartItem.objects.filter(cart=cart).order_by('cart_item_id'))
+        products = _seller_products_by_ids(item.product_id for item in cart_items)
+        for item in cart_items:
+            product = products.get(item.product_id)
             if product is not None:
-                items.append({**product, 'quantity': item.quantity})
+                items.append({**product.to_api_data(), 'quantity': item.quantity})
 
     return {
         'items': items,
@@ -65,7 +80,7 @@ def _guest_cart(request):
         except (TypeError, ValueError):
             continue
         if (
-            product_id in PRODUCTS_BY_ID
+            product_id >= SellerProduct.API_ID_OFFSET
             and isinstance(quantity, int)
             and not isinstance(quantity, bool)
             and quantity > 0
@@ -125,8 +140,8 @@ def api_cart_add(request):
     product_id = data.get('product_id')
     if isinstance(product_id, bool) or not isinstance(product_id, int):
         return JsonResponse({'error': 'Nieprawidłowy produkt.'}, status=400)
-    product = PRODUCTS_BY_ID.get(product_id)
-    if product is None or not product['inStock']:
+    product = _seller_products_by_ids([product_id]).get(product_id)
+    if product is None:
         return JsonResponse({'error': 'Produkt jest niedostępny.'}, status=404)
 
     profile = _current_profile(request)

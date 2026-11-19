@@ -30,6 +30,41 @@ class UserProfile(models.Model):
         managed = True
 
 
+class SellerProduct(models.Model):
+    API_ID_OFFSET = 1_000_000
+
+    seller = models.ForeignKey(
+        UserProfile,
+        related_name='products',
+        on_delete=models.CASCADE,
+        limit_choices_to={'role': 'seller'},
+    )
+    name = models.CharField(max_length=120)
+    category = models.CharField(max_length=40)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    image = models.FileField(upload_to='seller_products/')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    @property
+    def api_id(self):
+        return self.API_ID_OFFSET + self.pk
+
+    def to_api_data(self):
+        price = float(self.price)
+        return {
+            'id': self.api_id,
+            'name': self.name,
+            'category': self.category,
+            'price': f'{price:.2f} zł'.replace('.', ','),
+            'priceValue': price,
+            'image': self.image.url,
+            'inStock': True,
+        }
+
+
 class Cart(models.Model):
     cart_id = models.AutoField(primary_key=True)
     user = models.OneToOneField(

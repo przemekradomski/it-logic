@@ -217,6 +217,13 @@ body {
   background: #4d46e7;
 }
 
+.primary-button:disabled,
+.secondary-button:disabled,
+.danger-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .secondary-button {
   background: #e5e7eb;
   color: #111827;
@@ -256,6 +263,10 @@ body {
 
 .admin-seller-form > div {
   grid-column: 1 / -1;
+}
+
+.seller-product-form {
+  max-width: 760px;
 }
 
 .seller-list {

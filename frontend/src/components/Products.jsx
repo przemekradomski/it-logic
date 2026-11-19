@@ -1,30 +1,3 @@
-const products = [
-  {
-    name: 'ASUS TUF Gaming A15',
-    category: 'Laptop gamingowy',
-    price: '4 299,00 zł',
-    image: '/images/laptop.jpg'
-  },
-  {
-    name: 'Gigabyte GeForce RTX 4070',
-    category: 'Karta graficzna',
-    price: '2 699,00 zł',
-    image: '/images/gpu.jpg'
-  },
-  {
-    name: 'Samsung Odyssey G5 27"',
-    category: 'Monitor gamingowy',
-    price: '999,00 zł',
-    image: '/images/monitor.jpg'
-  },
-  {
-    name: 'Keychron K8 Pro',
-    category: 'Klawiatura mechaniczna',
-    price: '449,00 zł',
-    image: '/images/keyboard.jpg'
-  }
-];
-
 function Products({
   products = [],
   selectedCategory,

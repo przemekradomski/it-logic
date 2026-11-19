@@ -1,50 +1,16 @@
 import { useEffect, useState } from 'react';
 import './App.css';
+import { apiRequest } from './api';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import Categories from './components/Categories';
 import Products from './components/Products';
 import Foother from './components/foother';
+import AuthModal from './components/AuthModal';
+import SellerProductForm from './components/SellerProductForm';
+import AdminPanel from './pages/AdminPanel';
 
 const navItems = ['Laptopy', 'Komputery', 'Podzespoły', 'Monitory', 'Gaming', 'Akcesoria', 'Start home'];
-
-// Django session authentication: requests use cookies and CSRF protection.
-function getCookie(name) {
-  const cookie = document.cookie
-    .split('; ')
-    .find((item) => item.startsWith(`${name}=`));
-  return cookie ? decodeURIComponent(cookie.split('=').slice(1).join('=')) : null;
-}
-
-async function apiRequest(url, options = {}) {
-  const method = (options.method || 'GET').toUpperCase();
-  const headers = { ...(options.headers || {}) };
-
-  if (method !== 'GET' && method !== 'HEAD') {
-    // This endpoint should be decorated with @ensure_csrf_cookie in Django.
-    if (!getCookie('csrftoken')) {
-      await fetch('/api/auth/csrf/', { credentials: 'include' });
-    }
-    const csrfToken = getCookie('csrftoken');
-    if (csrfToken) headers['X-CSRFToken'] = csrfToken;
-    if (options.body && !(options.body instanceof FormData)) {
-      headers['Content-Type'] = 'application/json';
-    }
-  }
-
-  const response = await fetch(url, {
-    ...options,
-    method,
-    headers,
-    credentials: 'include',
-  });
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.detail || data.error || data.message || 'Wystąpił błąd. Spróbuj ponownie.');
-  }
-  return data;
-}
 
 const roleLabels = {
   customer: 'Klient',
@@ -61,20 +27,15 @@ function App() {
   const [showAccountPanel, setShowAccountPanel] = useState(false);
   const [showCartPanel, setShowCartPanel] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [showSellerProductForm, setShowSellerProductForm] = useState(false);
   const [user, setUser] = useState(null);
   const [cart, setCart] = useState([]);
-  const [sellers, setSellers] = useState([]);
-  const [sellerForm, setSellerForm] = useState({
-    username: '',
-    email: '',
-    phone: '',
-    password: '',
-    confirm_password: '',
-  });
-  const [adminError, setAdminError] = useState('');
-  const [adminMessage, setAdminMessage] = useState('');
-  const [adminLoading, setAdminLoading] = useState(false);
   const [authMode, setAuthMode] = useState('login');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [authSuccess, setAuthSuccess] = useState('');
+  const [productFormLoading, setProductFormLoading] = useState(false);
+  const [productFormError, setProductFormError] = useState('');
   const [loginForm, setLoginForm] = useState({
     email: '',
     password: '',
@@ -88,14 +49,14 @@ function App() {
   });
 
   useEffect(() => {
-    fetch('/api/products/')
-      .then((response) => response.json())
+    apiRequest('/api/products/')
       .then((data) => {
         setProducts(data.products || []);
-        setLoading(false);
       })
       .catch((error) => {
         console.error('Błąd pobierania danych:', error);
+      })
+      .finally(() => {
         setLoading(false);
       });
   }, []);
@@ -127,76 +88,10 @@ function App() {
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const cartTotal = cart.reduce((sum, item) => sum + item.priceValue * item.quantity, 0);
 
-  const loadSellers = async () => {
-    setAdminLoading(true);
-    setAdminError('');
-    try {
-      const data = await apiRequest('/api/admin/sellers/');
-      setSellers(data.sellers || []);
-    } catch (error) {
-      setAdminError(error.message || 'Nie udało się pobrać sprzedawców.');
-    } finally {
-      setAdminLoading(false);
-    }
-  };
-
   const openAdminPanel = () => {
     setShowAdminPanel(true);
     setShowAccountPanel(false);
     setShowCartPanel(false);
-    setAdminMessage('');
-    loadSellers();
-  };
-
-  const handleSellerFormChange = (event) => {
-    const { name, value } = event.target;
-    setSellerForm((previous) => ({ ...previous, [name]: value }));
-  };
-
-  const handleCreateSeller = async (event) => {
-    event.preventDefault();
-    setAdminLoading(true);
-    setAdminError('');
-    setAdminMessage('');
-
-    try {
-      const data = await apiRequest('/api/admin/sellers/create/', {
-        method: 'POST',
-        body: JSON.stringify(sellerForm),
-      });
-      setSellers((previous) => [...previous, data.seller].sort((a, b) => a.username.localeCompare(b.username)));
-      setSellerForm({
-        username: '',
-        email: '',
-        phone: '',
-        password: '',
-        confirm_password: '',
-      });
-      setAdminMessage(data.message);
-    } catch (error) {
-      setAdminError(error.message || 'Nie udało się utworzyć sprzedawcy.');
-    } finally {
-      setAdminLoading(false);
-    }
-  };
-
-  const handleDeleteSeller = async (seller) => {
-    if (!window.confirm(`Czy na pewno usunąć konto sprzedawcy ${seller.username}?`)) return;
-
-    setAdminLoading(true);
-    setAdminError('');
-    setAdminMessage('');
-    try {
-      const data = await apiRequest(`/api/admin/sellers/${seller.id}/delete/`, {
-        method: 'DELETE',
-      });
-      setSellers((previous) => previous.filter((item) => item.id !== seller.id));
-      setAdminMessage(data.message);
-    } catch (error) {
-      setAdminError(error.message || 'Nie udało się usunąć sprzedawcy.');
-    } finally {
-      setAdminLoading(false);
-    }
   };
 
   const handleAddToCart = async (product) => {
@@ -234,9 +129,11 @@ function App() {
 
   const handleLoginSubmit = async (event) => {
     event.preventDefault();
-
     if (!loginForm.email || !loginForm.password) return;
 
+    setAuthLoading(true);
+    setAuthError('');
+    setAuthSuccess('');
     try {
       const data = await apiRequest('/api/auth/login/', {
         method: 'POST',
@@ -258,34 +155,26 @@ function App() {
       setShowAccountPanel(true);
       setLoginForm({ email: '', password: '' });
     } catch (error) {
-      alert(error.message || 'Nieprawidłowy email lub hasło.');
+      setAuthError(error.message);
+    } finally {
+      setAuthLoading(false);
     }
   };
 
   const handleRegisterSubmit = async (event) => {
     event.preventDefault();
-
-    if (
-      !registerForm.name ||
-      !registerForm.email ||
-      !registerForm.phone ||
-      !registerForm.password ||
-      !registerForm.confirm_password
-    ) {
-      alert('Uzupełnij wszystkie pola.');
-      return;
-    }
-
     if (registerForm.password.length < 8) {
-      alert('Hasło musi mieć co najmniej 8 znaków.');
+      setAuthError('Hasło musi mieć co najmniej 8 znaków.');
       return;
     }
-
     if (registerForm.password !== registerForm.confirm_password) {
-      alert('Hasła się nie zgadzają!');
+      setAuthError('Hasła się nie zgadzają.');
       return;
     }
 
+    setAuthLoading(true);
+    setAuthError('');
+    setAuthSuccess('');
     try {
       await apiRequest('/api/auth/register/', {
         method: 'POST',
@@ -298,7 +187,6 @@ function App() {
         }),
       });
 
-      alert('Konto klienta zostało utworzone. Możesz się zalogować.');
       setLoginForm({ email: registerForm.email, password: '' });
       setRegisterForm({
         name: '',
@@ -308,8 +196,31 @@ function App() {
         confirm_password: '',
       });
       setAuthMode('login');
+      setAuthSuccess('Konto zostało utworzone. Możesz się zalogować.');
     } catch (error) {
-      alert(error.message || 'Nie udało się utworzyć konta.');
+      setAuthError(error.message);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleCreateProduct = async (event) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    setProductFormLoading(true);
+    setProductFormError('');
+
+    try {
+      const data = await apiRequest('/api/seller/products/', {
+        method: 'POST',
+        body: formData,
+      });
+      setProducts((previous) => [data.product, ...previous]);
+      setShowSellerProductForm(false);
+    } catch (error) {
+      setProductFormError(error.message);
+    } finally {
+      setProductFormLoading(false);
     }
   };
 
@@ -320,6 +231,7 @@ function App() {
       setCart([]);
       setShowAccountPanel(false);
       setShowAdminPanel(false);
+      setShowSellerProductForm(false);
     } catch (error) {
       alert(error.message || 'Nie udało się wylogować.');
     }
@@ -327,7 +239,7 @@ function App() {
 
   const toggleAccountPanel = () => {
     if (!user) {
-      setShowLoginModal(true);
+      openLoginModal();
       return;
     }
 
@@ -340,6 +252,12 @@ function App() {
     setShowAccountPanel(false);
   };
 
+  const openLoginModal = () => {
+    setAuthError('');
+    setAuthSuccess('');
+    setShowLoginModal(true);
+  };
+
   return (
     <>
       <Navbar
@@ -348,10 +266,9 @@ function App() {
         onSelectCategory={setSelectedCategory}
         user={user}
         cartCount={cartCount}
-        onOpenLogin={() => setShowLoginModal(true)}
+        onOpenLogin={openLoginModal}
         onToggleAccount={toggleAccountPanel}
         onToggleCart={toggleCartPanel}
-        onLogout={handleLogout}
         isCartOpen={showCartPanel}
         isAccountOpen={showAccountPanel}
       />
@@ -383,83 +300,7 @@ function App() {
       )}
 
       {showAdminPanel && user?.role === 'admin' && (
-        <section className="container py-4">
-          <div className="admin-panel">
-            <div className="admin-panel-header d-flex justify-content-between align-items-start gap-3">
-              <div>
-                <p className="eyebrow">Zarządzanie sklepem</p>
-                <h2>Panel administratora</h2>
-                <p className="text-muted mb-0">Dodawaj i usuwaj konta sprzedawców.</p>
-              </div>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => setShowAdminPanel(false)}
-              >
-                Zamknij
-              </button>
-            </div>
-
-            <form className="login-form admin-seller-form mb-4" onSubmit={handleCreateSeller}>
-              <label>
-                Nazwa użytkownika
-                <input name="username" value={sellerForm.username} onChange={handleSellerFormChange} maxLength={50} required />
-              </label>
-              <label>
-                Email
-                <input type="email" name="email" value={sellerForm.email} onChange={handleSellerFormChange} maxLength={100} required />
-              </label>
-              <label>
-                Numer telefonu
-                <input type="tel" name="phone" value={sellerForm.phone} onChange={handleSellerFormChange} maxLength={20} />
-              </label>
-              <label>
-                Hasło (min. 8 znaków)
-                <input type="password" name="password" value={sellerForm.password} onChange={handleSellerFormChange} minLength={8} required />
-              </label>
-              <label>
-                Powtórz hasło
-                <input type="password" name="confirm_password" value={sellerForm.confirm_password} onChange={handleSellerFormChange} minLength={8} required />
-              </label>
-              <div className="d-flex align-items-center gap-3 flex-wrap">
-                <button type="submit" className="primary-button" disabled={adminLoading}>
-                  Dodaj sprzedawcę
-                </button>
-                {adminMessage && <span className="text-success">{adminMessage}</span>}
-                {adminError && <span className="text-danger" role="alert">{adminError}</span>}
-              </div>
-            </form>
-
-            <div className="admin-panel-header">
-              <h3>Sprzedawcy</h3>
-            </div>
-            {adminLoading && sellers.length === 0 ? (
-              <p className="text-muted">Ładowanie sprzedawców...</p>
-            ) : sellers.length > 0 ? (
-              <div className="seller-list">
-                {sellers.map((seller) => (
-                  <div className="seller-row" key={seller.id}>
-                    <div>
-                      <strong>{seller.username}</strong>
-                      <span>{seller.email}</span>
-                      {seller.phone && <small>{seller.phone}</small>}
-                    </div>
-                    <button
-                      type="button"
-                      className="danger-button"
-                      onClick={() => handleDeleteSeller(seller)}
-                      disabled={adminLoading}
-                    >
-                      Usuń sprzedawcę
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted">{adminError || 'Nie ma jeszcze żadnych sprzedawców.'}</p>
-            )}
-          </div>
-        </section>
+        <AdminPanel onClose={() => setShowAdminPanel(false)} />
       )}
 
       {showCartPanel && (
@@ -509,10 +350,30 @@ function App() {
         <div className="seller-banner">
           <div className="container d-flex justify-content-between align-items-center gap-3 flex-wrap py-3">
             <span>Jesteś zalogowany jako sprzedawca.</span>
-            <button type="button" className="primary-button">
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => {
+                setProductFormError('');
+                setShowSellerProductForm((previous) => !previous);
+              }}
+            >
               Wystaw na sprzedaż
             </button>
           </div>
+          {showSellerProductForm && (
+            <div className="container pb-4">
+              <div className="admin-panel">
+                <h3>Dodaj produkt</h3>
+                <SellerProductForm
+                  onSubmit={handleCreateProduct}
+                  onCancel={() => setShowSellerProductForm(false)}
+                  loading={productFormLoading}
+                  error={productFormError}
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -534,126 +395,24 @@ function App() {
 
       <Foother />
       {showLoginModal && (
-        <div className="modal-backdrop" onClick={() => setShowLoginModal(false)}>
-          <div className="login-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="login-header">
-              <h3>{authMode === 'login' ? 'Zaloguj się' : 'Utwórz konto klienta'}</h3>
-              <button type="button" className="close-button" onClick={() => setShowLoginModal(false)}>
-                ×
-              </button>
-            </div>
-
-            {authMode === 'login' ? (
-              <form onSubmit={handleLoginSubmit} className="login-form">
-                <label>
-                  Email
-                  <input
-                    type="email"
-                    name="email"
-                    value={loginForm.email}
-                    onChange={handleLoginChange}
-                    placeholder="name@domain.pl"
-                    required
-                  />
-                </label>
-
-                <label>
-                  Hasło
-                  <input
-                    type="password"
-                    name="password"
-                    value={loginForm.password}
-                    onChange={handleLoginChange}
-                    placeholder="Podaj hasło"
-                    required
-                  />
-                </label>
-
-                <button type="submit" className="primary-button full-width">
-                  Zaloguj się
-                </button>
-                <button
-                  type="button"
-                  className="text-button"
-                  onClick={() => setAuthMode('register')}
-                >
-                  Nie masz konta? Zarejestruj się
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleRegisterSubmit} className="login-form">
-                <label>
-                  Nazwa użytkownika
-                  <input
-                    type="text"
-                    name="name"
-                    value={registerForm.name}
-                    onChange={handleRegisterChange}
-                    placeholder="jan_kowalski"
-                    required
-                  />
-                </label>
-
-                <label>
-                  Email
-                  <input
-                    type="email"
-                    name="email"
-                    value={registerForm.email}
-                    onChange={handleRegisterChange}
-                    placeholder="name@domain.pl"
-                    required
-                  />
-                </label>
-
-                <label>
-                  Numer telefonu
-                  <input 
-                  type="tel"
-                  name="phone"
-                  value={registerForm.phone}
-                  onChange={handleRegisterChange}
-                  placeholder="123-456-789"
-                  required
-                  />
-                </label>
-
-                <label>
-                  Hasło
-                  <input
-                    type="password"
-                    name="password"
-                    value={registerForm.password}
-                    onChange={handleRegisterChange}
-                    placeholder="Podaj hasło"
-                    required
-                  />
-                </label>
-                
-                <label>
-                  Powtórz hasło
-                  <input
-                    type="password"
-                    name="confirm_password"
-                    onChange={handleRegisterChange}
-                    placeholder="Powtórz hasło"                  
-                  />
-                </label>
-
-                <button type="submit" className="primary-button full-width">
-                  Zarejestruj się
-                </button>
-                <button
-                  type="button"
-                  className="text-button"
-                  onClick={() => setAuthMode('login')}
-                >
-                  Masz już konto? Zaloguj się
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
+        <AuthModal
+          mode={authMode}
+          onClose={() => setShowLoginModal(false)}
+          onSwitchMode={() => {
+            setAuthMode((previous) => previous === 'login' ? 'register' : 'login');
+            setAuthError('');
+            setAuthSuccess('');
+          }}
+          loginForm={loginForm}
+          onLoginChange={handleLoginChange}
+          onLoginSubmit={handleLoginSubmit}
+          registerForm={registerForm}
+          onRegisterChange={handleRegisterChange}
+          onRegisterSubmit={handleRegisterSubmit}
+          loading={authLoading}
+          error={authError}
+          success={authSuccess}
+        />
       )}
     </>
   );

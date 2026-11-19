@@ -15,9 +15,11 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from django.conf import settings
 from django.urls import path
+from django.conf.urls.static import static
 from sklep_komputerowy.cart_views import api_cart, api_cart_add, api_cart_remove
-from sklep_komputerowy.views import dashboard, api_products
+from sklep_komputerowy.views import dashboard, api_products, api_seller_create_product
 from sklep_komputerowy.auth_views import (
     api_csrf,
     api_current_user,
@@ -34,6 +36,7 @@ urlpatterns = [
     path('', dashboard, name='home'),
     path('dashboard/', dashboard, name='dashboard'),
     path('api/products/', api_products, name='api_products'),
+    path('api/seller/products/', api_seller_create_product, name='api_seller_create_product'),
     path('api/auth/csrf/', api_csrf, name='api_csrf'),
     path('api/auth/me/', api_current_user, name='api_current_user'),
     path('api/auth/register/', api_register, name='api_register'),
@@ -49,4 +52,4 @@ urlpatterns = [
     path('api/cart/', api_cart, name='api_cart'),
     path('api/cart/items/', api_cart_add, name='api_cart_add'),
     path('api/cart/items/<int:product_id>/', api_cart_remove, name='api_cart_remove'),
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

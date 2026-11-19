@@ -1,13 +1,15 @@
 import json
+import tempfile
 from io import StringIO
 from unittest.mock import patch
 
 from django.contrib.auth.hashers import check_password
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db import connection
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, override_settings
 
-from .models import Cart, CartItem, UserProfile
+from .models import Cart, CartItem, SellerProduct, UserProfile
 from .session_keys import AUTH_SESSION_KEY
 
 
@@ -16,7 +18,6 @@ class AdminSellerApiTests(TransactionTestCase):
     def setUpClass(cls):
         super().setUpClass()
         with connection.schema_editor() as schema_editor:
-            schema_editor.create_model(UserProfile)
             schema_editor.create_model(Cart)
             schema_editor.create_model(CartItem)
 
@@ -25,7 +26,6 @@ class AdminSellerApiTests(TransactionTestCase):
         with connection.schema_editor() as schema_editor:
             schema_editor.delete_model(CartItem)
             schema_editor.delete_model(Cart)
-            schema_editor.delete_model(UserProfile)
         super().tearDownClass()
 
     def setUp(self):
@@ -113,3 +113,59 @@ class AdminSellerApiTests(TransactionTestCase):
         created_admin = UserProfile.objects.get(username='new-admin')
         self.assertEqual(created_admin.role, 'admin')
         self.assertTrue(check_password('admin-password', created_admin.password))
+
+    def test_seller_can_create_product_with_image(self):
+        self._login_as(self.seller)
+        with tempfile.TemporaryDirectory() as media_root:
+            with override_settings(MEDIA_ROOT=media_root):
+                response = self.client.post(
+                    '/api/seller/products/',
+                    {
+                        'name': 'Laptop sprzedawcy',
+                        'category': 'Laptopy',
+                        'price': '2499.99',
+                        'image': SimpleUploadedFile(
+                            'laptop.jpg',
+                            b'\xff\xd8\xff\xdbsample-jpeg',
+                            content_type='image/jpeg',
+                        ),
+                    },
+                )
+
+        self.assertEqual(response.status_code, 201)
+        product = SellerProduct.objects.get(name='Laptop sprzedawcy')
+        self.assertEqual(product.seller, self.seller)
+        self.assertEqual(response.json()['product']['id'], 1_000_000 + product.pk)
+        product_id = response.json()['product']['id']
+        self.assertIn(
+            product_id,
+            [item['id'] for item in self.client.get('/api/products/').json()['products']],
+        )
+
+        cart_response = self.client.post(
+            '/api/cart/items/',
+            data=json.dumps({'product_id': product_id}),
+            content_type='application/json',
+        )
+        self.assertEqual(cart_response.status_code, 200)
+        self.assertEqual(cart_response.json()['items'][0]['id'], product_id)
+
+    def test_only_sellers_can_create_products(self):
+        self._login_as(self.admin)
+
+        response = self.client.post(
+            '/api/seller/products/',
+            {
+                'name': 'Laptop',
+                'category': 'Laptopy',
+                'price': '100',
+                'image': SimpleUploadedFile(
+                    'laptop.jpg',
+                    b'\xff\xd8\xff\xdbsample-jpeg',
+                    content_type='image/jpeg',
+                ),
+            },
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(SellerProduct.objects.exists())

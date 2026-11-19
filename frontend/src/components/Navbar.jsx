@@ -7,7 +7,6 @@ function Navbar({
   onOpenLogin,
   onToggleAccount,
   onToggleCart,
-  onLogout,
   isCartOpen,
   isAccountOpen,
 }) {
