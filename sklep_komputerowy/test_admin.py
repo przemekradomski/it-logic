@@ -17,9 +17,7 @@ class AdminSellerApiTests(TransactionTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        with connection.schema_editor() as schema_editor:
-            schema_editor.create_model(Cart)
-            schema_editor.create_model(CartItem)
+        call_command('ensure_cart_tables', stdout=StringIO())
 
     @classmethod
     def tearDownClass(cls):
@@ -46,6 +44,11 @@ class AdminSellerApiTests(TransactionTestCase):
         session = self.client.session
         session[AUTH_SESSION_KEY] = profile.pk
         session.save()
+
+    def _fixture_teardown(self):
+        CartItem.objects.all().delete()
+        Cart.objects.all().delete()
+        super()._fixture_teardown()
 
     def test_seller_list_requires_admin_role(self):
         self._login_as(self.seller)
