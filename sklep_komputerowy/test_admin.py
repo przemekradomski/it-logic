@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 from io import StringIO
 from unittest.mock import patch
@@ -103,6 +104,36 @@ class AdminSellerApiTests(TransactionTestCase):
         self.assertEqual(response.status_code, 404)
         self.assertTrue(UserProfile.objects.filter(pk=customer.pk).exists())
 
+    def test_admin_can_delete_customer_but_not_own_account(self):
+        self._login_as(self.admin)
+        customer = UserProfile.objects.create(
+            username='removable-customer',
+            email='removable@example.com',
+            password='unused',
+            role='customer',
+        )
+
+        self_delete_response = self.client.delete(f'/api/admin/users/{self.admin.pk}/')
+        delete_response = self.client.delete(f'/api/admin/users/{customer.pk}/')
+
+        self.assertEqual(self_delete_response.status_code, 400)
+        self.assertTrue(UserProfile.objects.filter(pk=self.admin.pk).exists())
+        self.assertEqual(delete_response.status_code, 200)
+        self.assertFalse(UserProfile.objects.filter(pk=customer.pk).exists())
+
+    def test_admin_user_list_includes_roles(self):
+        self._login_as(self.admin)
+
+        response = self.client.get('/api/admin/users/')
+
+        self.assertEqual(response.status_code, 200)
+        users = response.json()['users']
+        self.assertEqual(
+            {user['role'] for user in users},
+            {'admin', 'seller'},
+        )
+        self.assertEqual(response.json()['current_user_id'], self.admin.pk)
+
     def test_create_admin_command_creates_hashed_admin(self):
         with patch(
             'builtins.input',
@@ -172,3 +203,49 @@ class AdminSellerApiTests(TransactionTestCase):
 
         self.assertEqual(response.status_code, 403)
         self.assertFalse(SellerProduct.objects.exists())
+
+    def test_seller_can_delete_only_own_product_and_image(self):
+        other_seller = UserProfile.objects.create(
+            username='other-seller',
+            email='other-seller@example.com',
+            password='unused',
+            role='seller',
+        )
+        with tempfile.TemporaryDirectory() as media_root:
+            with override_settings(MEDIA_ROOT=media_root):
+                products = []
+                for seller, name in ((self.seller, 'Moje urządzenie'), (other_seller, 'Cudze urządzenie')):
+                    product = SellerProduct.objects.create(
+                        seller=seller,
+                        name=name,
+                        category='Laptopy',
+                        price='100.00',
+                        image=SimpleUploadedFile(
+                            f'{name}.jpg',
+                            b'\xff\xd8\xff\xdbsample-jpeg',
+                            content_type='image/jpeg',
+                        ),
+                    )
+                    products.append(product)
+
+                self._login_as(self.seller)
+                other_product_response = self.client.delete(
+                    f'/api/seller/products/{products[1].api_id}/'
+                )
+                self.assertEqual(other_product_response.status_code, 404)
+
+                CartItem.objects.create(
+                    cart=Cart.objects.create(user=self.seller),
+                    product_id=products[0].api_id,
+                    quantity=1,
+                )
+                image_path = products[0].image.path
+                own_product_response = self.client.delete(
+                    f'/api/seller/products/{products[0].api_id}/'
+                )
+
+                self.assertEqual(own_product_response.status_code, 200)
+                self.assertFalse(SellerProduct.objects.filter(pk=products[0].pk).exists())
+                self.assertFalse(CartItem.objects.filter(product_id=products[0].api_id).exists())
+                self.assertFalse(os.path.exists(image_path))
+                self.assertTrue(SellerProduct.objects.filter(pk=products[1].pk).exists())

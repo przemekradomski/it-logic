@@ -296,6 +296,27 @@ body {
   color: #6b7280;
 }
 
+.seller-product-details {
+  display: flex;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 14px !important;
+}
+
+.seller-product-details img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.seller-product-details > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .floating-panel {
   position: absolute;
   right: 28px;

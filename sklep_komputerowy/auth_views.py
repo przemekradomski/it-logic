@@ -8,7 +8,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
-from .models import Cart, CartItem, UserProfile
+from .models import Cart, CartItem, SellerProduct, UserProfile
 from .session_keys import AUTH_SESSION_KEY
 
 
@@ -52,7 +52,34 @@ def _seller_data(seller):
         'username': seller.username,
         'email': seller.email,
         'phone': seller.phone or '',
+        'role': seller.role or 'customer',
     }
+
+
+def _admin_user_data(user):
+    data = _seller_data(user)
+    role_labels = {
+        'customer': 'Klient',
+        'seller': 'Sprzedawca',
+        'admin': 'Administrator',
+    }
+    return {**data, 'role_label': role_labels.get(user.role, 'Użytkownik')}
+
+
+def _delete_user_account(user):
+    with transaction.atomic():
+        user = UserProfile.objects.select_for_update().get(pk=user.pk)
+        products = list(SellerProduct.objects.filter(seller=user))
+        product_images = [(product.image.storage, product.image.name) for product in products if product.image]
+
+        cart = Cart.objects.filter(user=user).first()
+        if cart is not None:
+            CartItem.objects.filter(cart=cart).delete()
+            cart.delete()
+        user.delete()
+
+    for storage, image_name in product_images:
+        storage.delete(image_name)
 
 
 @require_GET
@@ -173,6 +200,36 @@ def api_admin_sellers(request):
     return JsonResponse({'sellers': [_seller_data(seller) for seller in sellers]})
 
 
+@require_GET
+def api_admin_users(request):
+    admin, error = _admin_profile(request)
+    if error:
+        return error
+
+    users = UserProfile.objects.order_by('role', 'username')
+    return JsonResponse({
+        'users': [_admin_user_data(user) for user in users],
+        'current_user_id': admin.pk,
+    })
+
+
+@require_http_methods(['DELETE'])
+def api_admin_delete_user(request, user_id):
+    admin, error = _admin_profile(request)
+    if error:
+        return error
+    if admin.pk == user_id:
+        return JsonResponse({'error': 'Nie możesz usunąć własnego konta administratora.'}, status=400)
+
+    user = UserProfile.objects.filter(pk=user_id).first()
+    if user is None:
+        return JsonResponse({'error': 'Nie znaleziono użytkownika.'}, status=404)
+
+    username = user.username
+    _delete_user_account(user)
+    return JsonResponse({'message': f'Konto użytkownika {username} zostało usunięte.'})
+
+
 @require_POST
 def api_admin_create_seller(request):
     _, error = _admin_profile(request)
@@ -230,7 +287,7 @@ def api_admin_create_seller(request):
         )
 
     return JsonResponse(
-        {'message': 'Konto sprzedawcy zostało utworzone.', 'seller': _seller_data(seller)},
+        {'message': 'Konto sprzedawcy zostało utworzone.', 'seller': _admin_user_data(seller)},
         status=201,
     )
 
@@ -241,18 +298,8 @@ def api_admin_delete_seller(request, seller_id):
     if error:
         return error
 
-    with transaction.atomic():
-        seller = UserProfile.objects.select_for_update().filter(
-            pk=seller_id,
-            role='seller',
-        ).first()
-        if seller is None:
-            return JsonResponse({'error': 'Nie znaleziono sprzedawcy.'}, status=404)
-
-        cart = Cart.objects.filter(user=seller).first()
-        if cart is not None:
-            CartItem.objects.filter(cart=cart).delete()
-            cart.delete()
-        seller.delete()
-
+    seller = UserProfile.objects.filter(pk=seller_id, role='seller').first()
+    if seller is None:
+        return JsonResponse({'error': 'Nie znaleziono sprzedawcy.'}, status=404)
+    _delete_user_account(seller)
     return JsonResponse({'message': 'Konto sprzedawcy zostało usunięte.'})

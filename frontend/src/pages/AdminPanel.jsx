@@ -10,15 +10,19 @@ const emptySellerForm = {
 };
 
 function AdminPanel({ onClose }) {
-  const [sellers, setSellers] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [currentUserId, setCurrentUserId] = useState(null);
   const [sellerForm, setSellerForm] = useState(emptySellerForm);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiRequest('/api/admin/sellers/')
-      .then((data) => setSellers(data.sellers || []))
+    apiRequest('/api/admin/users/')
+      .then((data) => {
+        setUsers(data.users || []);
+        setCurrentUserId(data.current_user_id);
+      })
       .catch((requestError) => setError(requestError.message))
       .finally(() => setLoading(false));
   }, []);
@@ -39,7 +43,7 @@ function AdminPanel({ onClose }) {
         method: 'POST',
         body: JSON.stringify(sellerForm),
       });
-      setSellers((previous) => (
+      setUsers((previous) => (
         [...previous, data.seller].sort((first, second) => first.username.localeCompare(second.username))
       ));
       setSellerForm(emptySellerForm);
@@ -51,17 +55,17 @@ function AdminPanel({ onClose }) {
     }
   };
 
-  const handleDeleteSeller = async (seller) => {
-    if (!window.confirm(`Czy na pewno usunąć konto sprzedawcy ${seller.username}?`)) return;
+  const handleDeleteUser = async (user) => {
+    if (!window.confirm(`Czy na pewno usunąć konto użytkownika ${user.username}?`)) return;
 
     setLoading(true);
     setError('');
     setMessage('');
     try {
-      const data = await apiRequest(`/api/admin/sellers/${seller.id}/delete/`, {
+      const data = await apiRequest(`/api/admin/users/${user.id}/`, {
         method: 'DELETE',
       });
-      setSellers((previous) => previous.filter((item) => item.id !== seller.id));
+      setUsers((previous) => previous.filter((item) => item.id !== user.id));
       setMessage(data.message);
     } catch (requestError) {
       setError(requestError.message);
@@ -77,7 +81,7 @@ function AdminPanel({ onClose }) {
           <div>
             <p className="eyebrow">Zarządzanie sklepem</p>
             <h2>Panel administratora</h2>
-            <p className="text-muted mb-0">Dodawaj i usuwaj konta sprzedawców.</p>
+            <p className="text-muted mb-0">Dodawaj sprzedawców i zarządzaj kontami użytkowników.</p>
           </div>
           <button type="button" className="secondary-button" onClick={onClose}>
             Zamknij
@@ -115,32 +119,34 @@ function AdminPanel({ onClose }) {
         </form>
 
         <div className="admin-panel-header">
-          <h3>Sprzedawcy</h3>
+          <h3>Użytkownicy</h3>
         </div>
-        {loading && sellers.length === 0 ? (
-          <p className="text-muted">Ładowanie sprzedawców...</p>
-        ) : sellers.length > 0 ? (
+        {loading && users.length === 0 ? (
+          <p className="text-muted">Ładowanie użytkowników...</p>
+        ) : users.length > 0 ? (
           <div className="seller-list">
-            {sellers.map((seller) => (
-              <div className="seller-row" key={seller.id}>
+            {users.map((user) => (
+              <div className="seller-row" key={user.id}>
                 <div>
-                  <strong>{seller.username}</strong>
-                  <span>{seller.email}</span>
-                  {seller.phone && <small>{seller.phone}</small>}
+                  <strong>{user.username}</strong>
+                  <span>{user.email}</span>
+                  <small>{user.role_label}</small>
+                  {user.phone && <small>{user.phone}</small>}
                 </div>
                 <button
                   type="button"
                   className="danger-button"
-                  onClick={() => handleDeleteSeller(seller)}
-                  disabled={loading}
+                  onClick={() => handleDeleteUser(user)}
+                  disabled={loading || user.id === currentUserId}
+                  title={user.id === currentUserId ? 'Nie możesz usunąć własnego konta.' : undefined}
                 >
-                  Usuń sprzedawcę
+                  Usuń użytkownika
                 </button>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-muted">{error || 'Nie ma jeszcze żadnych sprzedawców.'}</p>
+          <p className="text-muted">{error || 'Brak użytkowników.'}</p>
         )}
       </div>
     </section>

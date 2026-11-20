@@ -3,9 +3,10 @@ from decimal import Decimal, InvalidOperation
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from django.views.decorators.http import require_GET, require_POST
+from django.db import transaction
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from .models import SellerProduct, UserProfile
+from .models import CartItem, SellerProduct, UserProfile
 from .session_keys import AUTH_SESSION_KEY
 
 PRODUCT_CATEGORIES = (
@@ -33,20 +34,31 @@ def api_products(request):
     return JsonResponse({'products': products})
 
 
-@require_POST
-def api_seller_create_product(request):
+def _current_seller(request):
     profile_id = request.session.get(AUTH_SESSION_KEY)
     if profile_id is None:
-        return JsonResponse({'error': 'Zaloguj się jako sprzedawca.'}, status=401)
+        return None, JsonResponse({'error': 'Zaloguj się jako sprzedawca.'}, status=401)
 
     try:
         seller = UserProfile.objects.get(pk=profile_id)
     except UserProfile.DoesNotExist:
         request.session.pop(AUTH_SESSION_KEY, None)
-        return JsonResponse({'error': 'Zaloguj się jako sprzedawca.'}, status=401)
+        return None, JsonResponse({'error': 'Zaloguj się jako sprzedawca.'}, status=401)
 
     if seller.role != 'seller':
-        return JsonResponse({'error': 'Brak uprawnień sprzedawcy.'}, status=403)
+        return None, JsonResponse({'error': 'Brak uprawnień sprzedawcy.'}, status=403)
+    return seller, None
+
+
+@require_http_methods(['GET', 'POST'])
+def api_seller_create_product(request):
+    seller, error = _current_seller(request)
+    if error:
+        return error
+
+    if request.method == 'GET':
+        products = SellerProduct.objects.filter(seller=seller)
+        return JsonResponse({'products': [product.to_api_data() for product in products]})
 
     name = request.POST.get('name', '').strip()
     category = request.POST.get('category', '').strip()
@@ -93,6 +105,32 @@ def api_seller_create_product(request):
         {'message': 'Produkt został dodany.', 'product': product.to_api_data()},
         status=201,
     )
+
+
+@require_http_methods(['DELETE'])
+def api_seller_delete_product(request, product_id):
+    seller, error = _current_seller(request)
+    if error:
+        return error
+
+    seller_product_id = product_id - SellerProduct.API_ID_OFFSET
+    with transaction.atomic():
+        product = SellerProduct.objects.select_for_update().filter(
+            pk=seller_product_id,
+            seller=seller,
+        ).first()
+        if product is None:
+            return JsonResponse({'error': 'Nie znaleziono Twojego produktu.'}, status=404)
+
+        image_storage = product.image.storage
+        image_name = product.image.name
+        CartItem.objects.filter(product_id=product.api_id).delete()
+        product.delete()
+
+    if image_name:
+        image_storage.delete(image_name)
+    return JsonResponse({'message': 'Produkt został usunięty.'})
+
 
 def register(request):
     if request.method == 'POST':

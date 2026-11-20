@@ -8,6 +8,7 @@ import Products from './components/Products';
 import Foother from './components/foother';
 import AuthModal from './components/AuthModal';
 import SellerProductForm from './components/SellerProductForm';
+import SellerProducts from './components/SellerProducts';
 import AdminPanel from './pages/AdminPanel';
 
 const navItems = ['Laptopy', 'Komputery', 'Podzespoły', 'Monitory', 'Gaming', 'Akcesoria', 'Start home'];
@@ -22,7 +23,10 @@ const roleLabels = {
 function App() {
   const [selectedCategory, setSelectedCategory] = useState('Laptopy');
   const [products, setProducts] = useState([]);
+  const [sellerProducts, setSellerProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [sellerProductsLoading, setSellerProductsLoading] = useState(true);
+  const [sellerProductsError, setSellerProductsError] = useState('');
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showAccountPanel, setShowAccountPanel] = useState(false);
   const [showCartPanel, setShowCartPanel] = useState(false);
@@ -61,6 +65,15 @@ function App() {
       });
   }, []);
 
+  useEffect(() => {
+    if (user?.role !== 'seller') return;
+
+    apiRequest('/api/seller/products/')
+      .then((data) => setSellerProducts(data.products || []))
+      .catch((error) => setSellerProductsError(error.message))
+      .finally(() => setSellerProductsLoading(false));
+  }, [user?.role]);
+
   // Restore the logged-in user and guest/user cart independently.
   useEffect(() => {
     apiRequest('/api/auth/me/')
@@ -72,6 +85,8 @@ function App() {
             role: account.role,
             label: account.label || roleLabels[account.role] || 'Użytkownik',
           });
+          setSellerProductsLoading(account.role === 'seller');
+          setSellerProductsError('');
         }
       })
       .catch(() => setUser(null));
@@ -149,6 +164,8 @@ function App() {
         role: account.role,
         label: account.label || roleLabels[account.role] || 'Użytkownik',
       });
+      setSellerProductsLoading(account.role === 'seller');
+      setSellerProductsError('');
       const cartData = await apiRequest('/api/cart/');
       setCart(cartData.items || []);
       setShowLoginModal(false);
@@ -216,6 +233,7 @@ function App() {
         body: formData,
       });
       setProducts((previous) => [data.product, ...previous]);
+      setSellerProducts((previous) => [data.product, ...previous]);
       setShowSellerProductForm(false);
     } catch (error) {
       setProductFormError(error.message);
@@ -224,11 +242,28 @@ function App() {
     }
   };
 
+  const handleDeleteProduct = async (product) => {
+    if (!window.confirm(`Czy na pewno usunąć produkt „${product.name}”?`)) return;
+
+    try {
+      await apiRequest(`/api/seller/products/${product.id}/`, { method: 'DELETE' });
+      setProducts((previous) => previous.filter((item) => item.id !== product.id));
+      setSellerProducts((previous) => previous.filter((item) => item.id !== product.id));
+      setCart((previous) => previous.filter((item) => item.id !== product.id));
+      setSellerProductsError('');
+    } catch (error) {
+      setSellerProductsError(error.message);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await apiRequest('/api/auth/logout/', { method: 'POST', body: JSON.stringify({}) });
       setUser(null);
       setCart([]);
+      setSellerProducts([]);
+      setSellerProductsLoading(false);
+      setSellerProductsError('');
       setShowAccountPanel(false);
       setShowAdminPanel(false);
       setShowSellerProductForm(false);
@@ -347,34 +382,42 @@ function App() {
       )}
 
       {user?.role === 'seller' && (
-        <div className="seller-banner">
-          <div className="container d-flex justify-content-between align-items-center gap-3 flex-wrap py-3">
-            <span>Jesteś zalogowany jako sprzedawca.</span>
-            <button
-              type="button"
-              className="primary-button"
-              onClick={() => {
-                setProductFormError('');
-                setShowSellerProductForm((previous) => !previous);
-              }}
-            >
-              Wystaw na sprzedaż
-            </button>
-          </div>
-          {showSellerProductForm && (
-            <div className="container pb-4">
-              <div className="admin-panel">
-                <h3>Dodaj produkt</h3>
-                <SellerProductForm
-                  onSubmit={handleCreateProduct}
-                  onCancel={() => setShowSellerProductForm(false)}
-                  loading={productFormLoading}
-                  error={productFormError}
-                />
-              </div>
+        <>
+          <div className="seller-banner">
+            <div className="container d-flex justify-content-between align-items-center gap-3 flex-wrap py-3">
+              <span>Jesteś zalogowany jako sprzedawca.</span>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => {
+                  setProductFormError('');
+                  setShowSellerProductForm((previous) => !previous);
+                }}
+              >
+                Wystaw na sprzedaż
+              </button>
             </div>
-          )}
-        </div>
+            {showSellerProductForm && (
+              <div className="container pb-4">
+                <div className="admin-panel">
+                  <h3>Dodaj produkt</h3>
+                  <SellerProductForm
+                    onSubmit={handleCreateProduct}
+                    onCancel={() => setShowSellerProductForm(false)}
+                    loading={productFormLoading}
+                    error={productFormError}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          <SellerProducts
+            products={sellerProducts}
+            loading={sellerProductsLoading}
+            error={sellerProductsError}
+            onDelete={handleDeleteProduct}
+          />
+        </>
       )}
 
 
