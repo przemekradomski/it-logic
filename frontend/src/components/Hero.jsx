@@ -1,3 +1,5 @@
+import computerImage from '../../images/komp.png';
+
 const styles = {
   hero: {
     background: '#10131e',
@@ -97,7 +99,7 @@ function Hero() {
 
           <div className="col-md-6 p-0">
             <div style={styles.heroVisual} aria-label="Komputer gamingowy">
-              <img src="images/komp.png"/>
+              <img className="hero-image" src={computerImage} alt="Komputer gamingowy" />
             </div>
           </div>
         </div>

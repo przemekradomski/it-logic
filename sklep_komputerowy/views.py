@@ -1,5 +1,6 @@
 from decimal import Decimal, InvalidOperation
 
+from django.conf import settings
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.contrib import messages
@@ -21,9 +22,16 @@ PRODUCT_CATEGORIES = (
 
 
 def dashboard(request):
+    static_files = (
+        settings.BASE_DIR / 'static' / 'js' / 'main.js',
+        settings.BASE_DIR / 'static' / 'assets' / 'main.css',
+    )
+    static_version = '-'.join(str(path.stat().st_mtime_ns) for path in static_files)
+
     return render(request, 'dashboard.html', {
         'title': 'IT-Logic',
         'vite_server_url': None,
+        'static_version': static_version,
     })
 
 
