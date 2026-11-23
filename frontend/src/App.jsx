@@ -422,7 +422,7 @@ function App() {
 
 
       <Hero />
-      <Categories />
+      <Categories onSelectCategory={setSelectedCategory} />
 
       {loading ? (
         <div className="container py-5 text-center text-muted">Ładowanie produktów...</div>

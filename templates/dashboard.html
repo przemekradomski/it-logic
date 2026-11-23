@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/svg+xml" href="{% static 'favicon.svg' %}">
-    <link rel="stylesheet" href="{% static 'assets/main.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/main.css' %}?v={{ static_version }}">
     <title>{{ title }}</title>
 </head>
 <body>
@@ -15,7 +15,7 @@
         <script type="module" src="{{ vite_server_url }}/@vite/client"></script>
         <script type="module" src="{{ vite_server_url }}/src/main.jsx"></script>
     {% else %}
-        <script type="module" src="{% static 'js/main.js' %}"></script>
+        <script type="module" src="{% static 'js/main.js' %}?v={{ static_version }}"></script>
     {% endif %}
 </body>
 </html>

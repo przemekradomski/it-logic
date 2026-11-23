@@ -7,7 +7,7 @@ function Products({
   const hasProducts = products.length > 0;
 
   return (
-    <section className="products-section py-5">
+    <section className="products-section py-5" id="products">
       <div className="container">
         <p className="text-muted mb-1">
           Sprawdzone przez graczy. Wybrane dla Ciebie.
