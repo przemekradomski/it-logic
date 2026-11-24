@@ -90,11 +90,11 @@ function Hero() {
               Komputery i podzespoły dla wymagających.
             </p>
 
-            <button style={styles.button}>
+            {/* <button style={styles.button}>
               Odkryj strefę gamingu →
-            </button>
+            </button> */}
 
-            <div className="mt-4">01 / 03</div>
+            {/* <div className="mt-4">01 / 03</div> */}
           </div>
 
           <div className="col-md-6 p-0">
