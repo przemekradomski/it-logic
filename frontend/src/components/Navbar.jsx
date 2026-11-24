@@ -2,6 +2,8 @@ function Navbar({
   items = [],
   selectedCategory,
   onSelectCategory,
+  searchQuery = '',
+  onSearchChange,
   user,
   cartCount = 0,
   onOpenLogin,
@@ -48,8 +50,9 @@ function Navbar({
         <input
           type="search"
           value={searchQuery}
-          onChange={(event) => onsSearchChange?.(event.target.value)}
+          onChange={(event) => onSearchChange?.(event.target.value)}
           placeholder="Czego szukasz?"
+          aria-label="Wyszukaj produkty po nazwie lub kategorii"
           style={{
             flex: '1 1 300px',
             maxWidth: '700px',

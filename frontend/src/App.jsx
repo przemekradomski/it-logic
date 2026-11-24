@@ -97,9 +97,26 @@ function App() {
       .catch((error) => console.error('Nie udało się wczytać koszyka:', error));
   }, []);
 
-  const visibleProducts = products.filter(
-    (product) => product.category === selectedCategory && product.inStock
-  );
+  const normalizedSearchQuery = searchQuery
+    .trim()
+    .toLocaleLowerCase('pl-PL')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '');
+  const visibleProducts = products.filter((product) => {
+    if (!product.inStock) return false;
+    if (!normalizedSearchQuery) return product.category === selectedCategory;
+
+    const searchableText = `${product.name} ${product.category}`
+      .toLocaleLowerCase('pl-PL')
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '');
+    return searchableText.includes(normalizedSearchQuery);
+  });
+
+  const handleSelectCategory = (category) => {
+    setSelectedCategory(category);
+    setSearchQuery('');
+  };
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const cartTotal = cart.reduce((sum, item) => sum + item.priceValue * item.quantity, 0);
@@ -299,7 +316,9 @@ function App() {
       <Navbar
         items={navItems}
         selectedCategory={selectedCategory}
-        onSelectCategory={setSelectedCategory}
+        onSelectCategory={handleSelectCategory}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
         user={user}
         cartCount={cartCount}
         onOpenLogin={openLoginModal}
@@ -423,7 +442,7 @@ function App() {
 
 
       <Hero />
-      <Categories onSelectCategory={setSelectedCategory} />
+      <Categories onSelectCategory={handleSelectCategory} />
 
       {loading ? (
         <div className="container py-5 text-center text-muted">Ładowanie produktów...</div>
@@ -431,7 +450,10 @@ function App() {
         <Products
           products={visibleProducts}
           selectedCategory={selectedCategory}
-          fallbackMessage="Brak na magazynie"
+          searchQuery={searchQuery}
+          fallbackMessage={searchQuery.trim()
+            ? 'Nie znaleziono produktów pasujących do wyszukiwania.'
+            : 'Brak na magazynie'}
           onAddToCart={handleAddToCart}
         />
       )}

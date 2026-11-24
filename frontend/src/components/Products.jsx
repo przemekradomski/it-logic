@@ -1,6 +1,7 @@
 function Products({
   products = [],
   selectedCategory,
+  searchQuery = '',
   fallbackMessage = 'Brak na magazynie',
   onAddToCart,
 }) {
@@ -13,7 +14,11 @@ function Products({
           Sprawdzone przez graczy. Wybrane dla Ciebie.
         </p>
 
-        <h2>{selectedCategory || 'Bestsellery'}</h2>
+        <h2>
+          {searchQuery.trim()
+            ? `Wyniki wyszukiwania: ${searchQuery.trim()}`
+            : selectedCategory || 'Bestsellery'}
+        </h2>
 
         {!hasProducts ? (
           <div className="mt-4 p-4 border rounded bg-white text-center text-muted">
