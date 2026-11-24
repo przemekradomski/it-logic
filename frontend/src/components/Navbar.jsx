@@ -47,6 +47,8 @@ function Navbar({
 
         <input
           type="search"
+          value={searchQuery}
+          onChange={(event) => onsSearchChange?.(event.target.value)}
           placeholder="Czego szukasz?"
           style={{
             flex: '1 1 300px',

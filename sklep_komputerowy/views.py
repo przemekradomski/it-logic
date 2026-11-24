@@ -6,6 +6,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.db import transaction
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
+from django.db.models import Q
 
 from .models import CartItem, SellerProduct, UserProfile
 from .session_keys import AUTH_SESSION_KEY
@@ -20,6 +21,18 @@ PRODUCT_CATEGORIES = (
     'Start home',
 )
 
+@require_GET
+def api_products(request):
+    seller_products = SellerProduct.objects.all()
+    query = request.GET.get('q' '').strip()
+
+    if query:
+        seller_products = seller_products.filter(
+            Q(name_icontains=query) | Q(category_icontains=query)
+        )
+
+    products = [products.to_api_data() for product in seller_products]
+    return JsonResponse({'products' : products})
 
 def dashboard(request):
     static_files = (

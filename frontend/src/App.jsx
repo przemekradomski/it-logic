@@ -51,6 +51,7 @@ function App() {
     phone: '',
     confirm_password: '',
   });
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     apiRequest('/api/products/')
