@@ -43,8 +43,6 @@ function Products({
 
                   <h5>{product.name}</h5>
 
-                  <div className="stars">★★★★★ (48)</div>
-
                   <h4>{product.price}</h4>
 
                   <div className="d-flex justify-content-between">
