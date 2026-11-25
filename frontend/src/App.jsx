@@ -10,6 +10,8 @@ import AuthModal from './components/AuthModal';
 import SellerProductForm from './components/SellerProductForm';
 import SellerProducts from './components/SellerProducts';
 import AdminPanel from './pages/AdminPanel';
+import ProductDetail from './components/ProductDetail';
+import SellerProductEditModal from './components/SellerProductEditModal';
 
 const navItems = ['Laptopy', 'Komputery', 'Podzespoły', 'Monitory', 'Gaming', 'Akcesoria', 'Start home'];
 
@@ -52,6 +54,19 @@ function App() {
     confirm_password: '',
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState('');
+
+  useEffect(() => {
+    const detailMatch = window.location.pathname.match(/^\/produkt\/(\d+)\/?$/);
+    if (detailMatch) {
+      apiRequest(`/api/products/${detailMatch[1]}/`)
+        .then((data) => setSelectedProduct(data.product))
+        .catch((error) => console.error('Błąd pobierania szczegółów:', error));
+    }
+  }, []);
 
   useEffect(() => {
     apiRequest('/api/products/')
@@ -260,6 +275,38 @@ function App() {
     }
   };
 
+  const handleOpenProduct = async (product) => {
+    try {
+      const data = await apiRequest(`/api/products/${product.id}/`);
+      setSelectedProduct(data.product);
+      window.history.pushState({}, '', `/produkt/${product.id}`);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const handleCloseProduct = () => {
+    setSelectedProduct(null);
+    window.history.pushState({}, '', '/');
+  };
+
+  const handleEditProduct = async (productId, formData) => {
+    setEditLoading(true);
+    setEditError('');
+    try {
+      const data = await apiRequest(`/api/seller/products/${productId}/update/`, { method: 'POST', body: formData });
+      setProducts((previous) => previous.map((item) => item.id === productId ? data.product : item));
+      setSellerProducts((previous) => previous.map((item) => item.id === productId ? data.product : item));
+      setSelectedProduct((previous) => previous?.id === productId ? data.product : previous);
+      setEditingProduct(null);
+    } catch (error) {
+      setEditError(error.message);
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
   const handleDeleteProduct = async (product) => {
     if (!window.confirm(`Czy na pewno usunąć produkt „${product.name}”?`)) return;
 
@@ -436,12 +483,22 @@ function App() {
             loading={sellerProductsLoading}
             error={sellerProductsError}
             onDelete={handleDeleteProduct}
+            onEdit={(product) => { setEditError(''); setEditingProduct(product); }}
           />
         </>
       )}
 
 
-      <Hero />
+      {selectedProduct ? (
+        <ProductDetail
+          product={selectedProduct}
+          onClose={handleCloseProduct}
+          onAddToCart={handleAddToCart}
+          canEdit={user?.role === 'seller' && sellerProducts.some((item) => item.id === selectedProduct.id)}
+          onEdit={setEditingProduct}
+        />
+      ) : (
+        <><Hero />
       <Categories onSelectCategory={handleSelectCategory} />
 
       {loading ? (
@@ -455,11 +512,23 @@ function App() {
             ? 'Nie znaleziono produktów pasujących do wyszukiwania.'
             : 'Brak na magazynie'}
           onAddToCart={handleAddToCart}
+          onOpenProduct={handleOpenProduct}
         />
       )}
 
 
+      </> )}
+
       <Foother />
+      {editingProduct && (
+        <SellerProductEditModal
+          product={editingProduct}
+          onSubmit={handleEditProduct}
+          onCancel={() => { setEditingProduct(null); setEditError(''); }}
+          loading={editLoading}
+          error={editError}
+        />
+      )}
       {showLoginModal && (
         <AuthModal
           mode={authMode}

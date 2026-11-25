@@ -34,7 +34,7 @@ def api_products(request):
     products = [products.to_api_data() for product in seller_products]
     return JsonResponse({'products' : products})
 
-def dashboard(request):
+def dashboard(request, product_id=None):
     static_files = (
         settings.BASE_DIR / 'static' / 'js' / 'main.js',
         settings.BASE_DIR / 'static' / 'assets' / 'main.css',
@@ -84,6 +84,7 @@ def api_seller_create_product(request):
     name = request.POST.get('name', '').strip()
     category = request.POST.get('category', '').strip()
     raw_price = request.POST.get('price', '').strip()
+    description = request.POST.get('description', '').strip()
     image = request.FILES.get('image')
 
     if not name or len(name) > 120:
@@ -96,6 +97,8 @@ def api_seller_create_product(request):
         return JsonResponse({'error': 'Podaj prawidłową cenę.'}, status=400)
     if not price.is_finite() or price <= 0 or price > Decimal('99999999.99'):
         return JsonResponse({'error': 'Cena musi być większa od zera.'}, status=400)
+    if len(description) > 5000:
+        return JsonResponse({'error': 'Opis może mieć maksymalnie 5000 znaków.'}, status=400)
     if image is None:
         return JsonResponse({'error': 'Dodaj zdjęcie produktu.'}, status=400)
     if image.size > 5 * 1024 * 1024:
@@ -120,6 +123,7 @@ def api_seller_create_product(request):
         name=name,
         category=category,
         price=price,
+        description=description,
         image=image,
     )
     return JsonResponse(
@@ -127,6 +131,72 @@ def api_seller_create_product(request):
         status=201,
     )
 
+
+@require_http_methods(['GET'])
+def api_product_detail(request, product_id):
+    seller_product_id = product_id - SellerProduct.API_ID_OFFSET
+    product = SellerProduct.objects.select_related('seller').filter(pk=seller_product_id).first()
+    if product is None:
+        return JsonResponse({'error': 'Nie znaleziono produktu.'}, status=404)
+    return JsonResponse({'product': product.to_api_data()})
+
+
+@require_http_methods(['POST', 'PUT', 'PATCH'])
+def api_seller_update_product(request, product_id):
+    seller, error = _current_seller(request)
+    if error:
+        return error
+
+    seller_product_id = product_id - SellerProduct.API_ID_OFFSET
+    with transaction.atomic():
+        product = SellerProduct.objects.select_for_update().filter(
+            pk=seller_product_id,
+            seller=seller,
+        ).first()
+        if product is None:
+            return JsonResponse({'error': 'Nie znaleziono Twojego produktu.'}, status=404)
+
+        name = request.POST.get('name', product.name).strip()
+        category = request.POST.get('category', product.category).strip()
+        description = request.POST.get('description', product.description).strip()
+        raw_price = request.POST.get('price', str(product.price)).strip()
+
+        if not name or len(name) > 120:
+            return JsonResponse({'error': 'Nazwa produktu jest wymagana (maks. 120 znaków).'}, status=400)
+        if category not in PRODUCT_CATEGORIES:
+            return JsonResponse({'error': 'Wybierz prawidłową kategorię.'}, status=400)
+        if len(description) > 5000:
+            return JsonResponse({'error': 'Opis może mieć maksymalnie 5000 znaków.'}, status=400)
+        try:
+            price = Decimal(raw_price)
+        except InvalidOperation:
+            return JsonResponse({'error': 'Podaj prawidłową cenę.'}, status=400)
+        if not price.is_finite() or price <= 0 or price > Decimal('99999999.99'):
+            return JsonResponse({'error': 'Cena musi być większa od zera.'}, status=400)
+
+        image = request.FILES.get('image')
+        old_image_name = None
+        if image is not None:
+            if image.size > 5 * 1024 * 1024:
+                return JsonResponse({'error': 'Zdjęcie może mieć maksymalnie 5 MB.'}, status=400)
+            image_header = image.read(12)
+            image.seek(0)
+            supported = image_header.startswith(b'\xff\xd8\xff') or image_header.startswith(b'\x89PNG\r\n\x1a\n') or image_header.startswith((b'GIF87a', b'GIF89a')) or (image_header.startswith(b'RIFF') and image_header[8:12] == b'WEBP')
+            if not supported:
+                return JsonResponse({'error': 'Dozwolone są zdjęcia JPG, PNG, GIF lub WebP.'}, status=400)
+            old_image_name = product.image.name
+
+        product.name = name
+        product.category = category
+        product.price = price
+        product.description = description
+        if image is not None:
+            product.image = image
+        product.save()
+
+        if old_image_name:
+            product.image.storage.delete(old_image_name)
+        return JsonResponse({'message': 'Produkt został zaktualizowany.', 'product': product.to_api_data()})
 
 @require_http_methods(['DELETE'])
 def api_seller_delete_product(request, product_id):

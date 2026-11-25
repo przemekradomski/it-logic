@@ -30,6 +30,11 @@ function SellerProductForm({ onSubmit, onCancel, loading, error }) {
       </label>
 
       <label>
+        Opis produktu
+        <textarea name="description" maxLength={5000} rows={6} placeholder="Opis, parametry i najważniejsze informacje o produkcie" />
+      </label>
+
+      <label>
         Zdjęcie produktu (JPG, PNG, GIF lub WebP; maks. 5 MB)
         <input
           name="image"

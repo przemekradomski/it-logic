@@ -24,6 +24,8 @@ from sklep_komputerowy.views import (
     api_products,
     api_seller_create_product,
     api_seller_delete_product,
+    api_product_detail,
+    api_seller_update_product,
 )
 from sklep_komputerowy.auth_views import (
     api_csrf,
@@ -42,8 +44,15 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', dashboard, name='home'),
     path('dashboard/', dashboard, name='dashboard'),
+    path('produkt/<int:product_id>/', dashboard, name='product_detail_page'),
     path('api/products/', api_products, name='api_products'),
     path('api/seller/products/', api_seller_create_product, name='api_seller_create_product'),
+    path('api/products/<int:product_id>/', api_product_detail, name='api_product_detail'),
+    path(
+        'api/seller/products/<int:product_id>/update/',
+        api_seller_update_product,
+        name='api_seller_update_product',
+    ),
     path(
         'api/seller/products/<int:product_id>/',
         api_seller_delete_product,

@@ -1,4 +1,4 @@
-function SellerProducts({ products, loading, error, onDelete }) {
+function SellerProducts({ products, loading, error, onDelete, onEdit }) {
   return (
     <section className="container py-4">
       <div className="admin-panel">
@@ -18,13 +18,10 @@ function SellerProducts({ products, loading, error, onDelete }) {
                     <span>{product.category} · {product.price}</span>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="danger-button"
-                  onClick={() => onDelete(product)}
-                >
-                  Usuń produkt
-                </button>
+                <div className="d-flex gap-2">
+                  <button type="button" className="secondary-button" onClick={() => onEdit(product)}>Edytuj</button>
+                  <button type="button" className="danger-button" onClick={() => onDelete(product)}>Usuń produkt</button>
+                </div>
               </div>
             ))}
           </div>

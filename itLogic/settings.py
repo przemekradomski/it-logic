@@ -97,7 +97,7 @@ WSGI_APPLICATION = 'itLogic.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ.get('DB_NAME', 'computer_store'),
+        'NAME': os.environ.get('DB_NAME', 'itLogic'),
         'USER': os.environ.get('DB_USER', 'django_user'),
         'PASSWORD': os.environ.get('DB_PASSWORD', 'Django123!'),
         'HOST': os.environ.get('DB_HOST', 'localhost'),

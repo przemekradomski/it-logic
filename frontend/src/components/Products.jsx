@@ -4,6 +4,7 @@ function Products({
   searchQuery = '',
   fallbackMessage = 'Brak na magazynie',
   onAddToCart,
+  onOpenProduct,
 }) {
   const hasProducts = products.length > 0;
 
@@ -28,7 +29,7 @@ function Products({
           <div className="row g-3 mt-3">
             {products.map((product, index) => (
               <div className="col-12 col-sm-6 col-lg-3" key={product.id ?? index}>
-                <div className="product-card">
+                <div className="product-card" role="button" tabIndex={0} onClick={() => onOpenProduct?.(product)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpenProduct?.(product); } }}>
 
                   <span className="badge-sale">OKAZJA</span>
 
@@ -54,7 +55,7 @@ function Products({
                     <button
                       type="button"
                       className="cart-btn"
-                      onClick={() => onAddToCart?.(product)}
+                      onClick={(event) => { event.stopPropagation(); onAddToCart?.(product); }}
                       aria-label={`Dodaj ${product.name} do koszyka`}
                     >
                       <i className="bi bi-cart3"></i>

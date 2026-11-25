@@ -42,6 +42,7 @@ class SellerProduct(models.Model):
     name = models.CharField(max_length=120)
     category = models.CharField(max_length=40)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    description = models.TextField(max_length=5000, blank=True, default='')
     image = models.FileField(upload_to='seller_products/')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -60,6 +61,8 @@ class SellerProduct(models.Model):
             'category': self.category,
             'price': f'{price:.2f} zł'.replace('.', ','),
             'priceValue': price,
+            'description': self.description,
+            'seller': self.seller.username,
             'image': self.image.url,
             'inStock': True,
         }
