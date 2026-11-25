@@ -1,4 +1,40 @@
+import { useEffect, useState } from 'react';
 import computerImage from '../../images/komp.png';
+import consoleImage from '../../images/ps5.png';
+import keyboardImage from '../../images/klawa.png';
+
+const slides = [
+  {
+    eyebrow: 'NOWOŚCI',
+    title: 'Nowa generacja sprzętu',
+    subText: 'Najnowsze komputery i podzespoły',
+    description: 'Odkryj świeże modele gotowe na wymagające aplikacje i gry.',
+    button: 'Zobacz nowości',
+    category: 'Komputery',
+    image: computerImage,
+    imageAlt: 'Komputer gamingowy',
+  },
+  {
+    eyebrow: 'STREFA GAMING',
+    title: 'Więcej FPS',
+    subText: 'Płynniejsza rozgrywka',
+    description: 'Wydajne zestawy gamingowe zaprojektowane do każdej rozgrywki.',
+    button: 'Odkryj strefę gamingu',
+    category: 'Gaming',
+    image: consoleImage,
+    imageAlt: 'Konsola do gier',
+  },
+  {
+    eyebrow: 'PROMOCJE',
+    title: 'Lepszy sprzęt',
+    subText: 'Więcej możliwości w dobrej cenie',
+    description: 'Sprawdź aktualne oferty na komputery, monitory i akcesoria.',
+    button: 'Przejrzyj promocje',
+    category: 'Promocje',
+    image: keyboardImage,
+    imageAlt: 'Klawiatura gamingowa',
+  },
+];
 
 const styles = {
   hero: {
@@ -21,7 +57,7 @@ const styles = {
   heroTitle: {
     fontSize: '50px',
     fontWeight: 700,
-    marginBottom: '80px',
+    marginBottom: '24px',
     lineHeight: 1.1,
     color: '#fff',
   },
@@ -42,65 +78,72 @@ const styles = {
     fontWeight: 600,
     marginTop: '1rem',
   },
-  heroVisual: {
-    position: 'relative',
-    width: '100%',
-    minHeight: '500px',
-    height: '100%',
-    background: 'radial-gradient(circle at 20% 25%, rgba(127, 100, 255, 0.8), transparent 18%), radial-gradient(circle at 75% 30%, rgba(54, 214, 255, 0.25), transparent 22%), linear-gradient(135deg, #1d2233 0%, #10131e 60%, #0b0d15 100%)',
-    borderRadius: '24px 0 0 24px',
-    boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.05)',
-  },
-  heroVisualBefore: {
-    content: '""',
-    position: 'absolute',
-    inset: '10% 12% 12% 18%',
-    borderRadius: '18px',
-    background: 'linear-gradient(145deg, #2a2f40 0%, #171b2a 100%)',
-    boxShadow: '0 30px 60px rgba(0, 0, 0, 0.38)',
-  },
-  heroVisualAfter: {
-    content: '""',
-    position: 'absolute',
-    width: '72%',
-    height: '18%',
-    left: '20%',
-    bottom: '12%',
-    borderRadius: '12px',
-    background: 'linear-gradient(90deg, #4761ff 0%, #8a6bff 50%, #b7a4ff 100%)',
-    boxShadow: '0 20px 40px rgba(96, 88, 245, 0.5)',
-  },
 };
 
-function Hero() {
+function Hero({ onNavigateCategory }) {
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setActiveSlide((current) => (current + 1) % slides.length);
+    }, 5000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  const slide = slides[activeSlide];
+
   return (
-    <section style={styles.hero}>
+    <section className="hero" style={styles.hero}>
       <div style={styles.containerFluid}>
         <div className="row align-items-center">
-          <div className="col-md-6" style={styles.heroContent}>
-            <p style={styles.textPurple}>
-              WIĘCEJ MOCY. WIĘCEJ MOŻLIWOŚCI.
-            </p>
+          <div className="col-md-6 hero-content" style={styles.heroContent}>
+            <div key={activeSlide} className="hero-slide-copy">
+              <p style={styles.textPurple}>{slide.eyebrow}</p>
+              <h1 style={styles.heroTitle}>{slide.title}</h1>
+              <small style={styles.subText}>{slide.subText}</small>
+              <p style={styles.description}>{slide.description}</p>
 
-            <h1 style={styles.heroTitle}>IT-Logic</h1>
-            <small style={styles.subText}>Technologia po twojemu</small>
-            <p style={styles.description}>
-              Odkryj sprzęt, który dotrzyma Ci kroku.
-              <br />
-              Komputery i podzespoły dla wymagających.
-            </p>
+              <button
+                type="button"
+                style={styles.button}
+                onClick={() => {
+                  onNavigateCategory?.(slide.category);
+                  if (slide.category !== 'Promocje') {
+                    document.getElementById('products')?.scrollIntoView({
+                      behavior: 'smooth',
+                      block: 'start',
+                    });
+                  }
+                }}
+              >
+                {slide.button} →
+              </button>
+            </div>
 
-            <button style={styles.button}>
-              Odkryj strefę gamingu →
-            </button>
-
-            <div className="mt-4">01 / 03</div>
+            <div className="hero-pagination mt-4" aria-label="Wybierz slajd">
+              {slides.map((item, index) => (
+                <button
+                  type="button"
+                  key={item.title}
+                  className={index === activeSlide ? 'hero-dot active' : 'hero-dot'}
+                  onClick={() => setActiveSlide(index)}
+                  aria-label={`Pokaż slajd ${index + 1}: ${item.title}`}
+                  aria-current={index === activeSlide ? 'true' : undefined}
+                >
+                  {String(index + 1).padStart(2, '0')}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="col-md-6 p-0">
-            <div style={styles.heroVisual} aria-label="Komputer gamingowy">
-              <img className="hero-image" src={computerImage} alt="Komputer gamingowy" />
-            </div>
+          <div className="col-md-6 hero-image-wrap">
+            <img
+              key={activeSlide}
+              className="hero-image"
+              src={slide.image}
+              alt={slide.imageAlt}
+            />
           </div>
         </div>
       </div>

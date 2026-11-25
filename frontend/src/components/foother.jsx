@@ -4,7 +4,7 @@ function Foother() {
       style={{
         background: '#111827',
         color: '#f9fafb',
-        marginTop: '40px',
+        marginTop: 'auto',
         padding: '32px 24px 24px',
       }}
     >

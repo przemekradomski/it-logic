@@ -1,13 +1,15 @@
+import json
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
+from django.db.models import Avg, Count
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.db import transaction
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from .models import CartItem, SellerProduct, UserProfile
+from .models import CartItem, ProductReview, SellerProduct, UserProfile
 from .session_keys import AUTH_SESSION_KEY
 
 PRODUCT_CATEGORIES = (
@@ -35,11 +37,106 @@ def dashboard(request):
     })
 
 
+def product_detail(request, product_id):
+    return dashboard(request)
+
+
 @require_GET
 def api_products(request):
-    seller_products = SellerProduct.objects.all()
-    products = [product.to_api_data() for product in seller_products]
+    profile_id = request.session.get(AUTH_SESSION_KEY)
+    user_reviews = {}
+    if profile_id is not None:
+        if UserProfile.objects.filter(pk=profile_id).exists():
+            user_reviews = {
+                review.product_id: {
+                    'rating': review.rating,
+                    'comment': review.comment,
+                }
+                for review in ProductReview.objects.filter(user_id=profile_id)
+            }
+        else:
+            request.session.pop(AUTH_SESSION_KEY, None)
+
+    seller_products = SellerProduct.objects.annotate(
+        average_rating=Avg('reviews__rating'),
+        review_count=Count('reviews'),
+    )
+    products = []
+    for product in seller_products:
+        product_data = product.to_api_data()
+        product_data['myReview'] = user_reviews.get(product.pk)
+        products.append(product_data)
     return JsonResponse({'products': products})
+
+
+def _current_profile(request):
+    profile_id = request.session.get(AUTH_SESSION_KEY)
+    if profile_id is None:
+        return None, JsonResponse({'error': 'Zaloguj się, aby dodać opinię.'}, status=401)
+
+    try:
+        profile = UserProfile.objects.get(pk=profile_id)
+    except UserProfile.DoesNotExist:
+        request.session.pop(AUTH_SESSION_KEY, None)
+        return None, JsonResponse({'error': 'Zaloguj się, aby dodać opinię.'}, status=401)
+
+    return profile, None
+
+
+@require_http_methods(['GET', 'POST'])
+def api_product_reviews(request, product_id):
+    profile, error = _current_profile(request)
+    if error:
+        return error
+
+    seller_product_id = product_id - SellerProduct.API_ID_OFFSET
+    product = SellerProduct.objects.filter(pk=seller_product_id).first()
+    if product is None:
+        return JsonResponse({'error': 'Nie znaleziono produktu.'}, status=404)
+
+    if request.method == 'GET':
+        review = ProductReview.objects.filter(product=product, user=profile).first()
+        review_data = None if review is None else {
+            'rating': review.rating,
+            'comment': review.comment,
+        }
+        return JsonResponse({'review': review_data})
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({'error': 'Nieprawidłowe dane opinii.'}, status=400)
+    if not isinstance(data, dict):
+        return JsonResponse({'error': 'Nieprawidłowe dane opinii.'}, status=400)
+
+    rating = data.get('rating')
+    if isinstance(rating, bool) or not isinstance(rating, int) or not 1 <= rating <= 5:
+        return JsonResponse({'error': 'Ocena musi wynosić od 1 do 5 gwiazdek.'}, status=400)
+
+    comment = data.get('comment')
+    if not isinstance(comment, str) or not comment.strip():
+        return JsonResponse({'error': 'Wpisz treść opinii.'}, status=400)
+    comment = comment.strip()
+    if len(comment) > 1000:
+        return JsonResponse({'error': 'Opinia może mieć maksymalnie 1000 znaków.'}, status=400)
+
+    review, created = ProductReview.objects.update_or_create(
+        product=product,
+        user=profile,
+        defaults={'rating': rating, 'comment': comment},
+    )
+    product = SellerProduct.objects.annotate(
+        average_rating=Avg('reviews__rating'),
+        review_count=Count('reviews'),
+    ).get(pk=product.pk)
+    product_data = product.to_api_data()
+    product_data['myReview'] = {'rating': review.rating, 'comment': review.comment}
+
+    return JsonResponse({
+        'message': 'Opinia została zapisana.',
+        'review': product_data['myReview'],
+        'product': product_data,
+    }, status=201 if created else 200)
 
 
 def _current_seller(request):
@@ -71,6 +168,7 @@ def api_seller_create_product(request):
     name = request.POST.get('name', '').strip()
     category = request.POST.get('category', '').strip()
     raw_price = request.POST.get('price', '').strip()
+    raw_discount_percent = request.POST.get('discount_percent', '0').strip()
     image = request.FILES.get('image')
 
     if not name or len(name) > 120:
@@ -83,6 +181,12 @@ def api_seller_create_product(request):
         return JsonResponse({'error': 'Podaj prawidłową cenę.'}, status=400)
     if not price.is_finite() or price <= 0 or price > Decimal('99999999.99'):
         return JsonResponse({'error': 'Cena musi być większa od zera.'}, status=400)
+    try:
+        discount_percent = int(raw_discount_percent)
+    except ValueError:
+        return JsonResponse({'error': 'Podaj prawidłowy procent promocji.'}, status=400)
+    if not 0 <= discount_percent <= 100:
+        return JsonResponse({'error': 'Promocja musi wynosić od 0% do 100%.'}, status=400)
     if image is None:
         return JsonResponse({'error': 'Dodaj zdjęcie produktu.'}, status=400)
     if image.size > 5 * 1024 * 1024:
@@ -107,6 +211,7 @@ def api_seller_create_product(request):
         name=name,
         category=category,
         price=price,
+        discount_percent=discount_percent,
         image=image,
     )
     return JsonResponse(
