@@ -21,7 +21,9 @@ from django.conf.urls.static import static
 from sklep_komputerowy.cart_views import api_cart, api_cart_add, api_cart_remove
 from sklep_komputerowy.views import (
     dashboard,
+    product_detail,
     api_products,
+    api_product_reviews,
     api_seller_create_product,
     api_seller_delete_product,
     api_product_detail,
@@ -45,8 +47,16 @@ urlpatterns = [
     path('', dashboard, name='home'),
     path('dashboard/', dashboard, name='dashboard'),
     path('kasa/', dashboard, name='checkout'),
-    path('produkt/<int:product_id>/', dashboard, name='product_detail_page'),
+    path('promocje/', dashboard, name='promotions'),
+    path('panel/admin/', dashboard, name='admin_panel_page'),
+    path('panel/sprzedawcy/', dashboard, name='seller_panel_page'),
+    path('produkt/<int:product_id>/', product_detail, name='product_detail'),
     path('api/products/', api_products, name='api_products'),
+    path(
+        'api/products/<int:product_id>/reviews/',
+        api_product_reviews,
+        name='api_product_reviews',
+    ),
     path('api/seller/products/', api_seller_create_product, name='api_seller_create_product'),
     path('api/products/<int:product_id>/', api_product_detail, name='api_product_detail'),
     path(

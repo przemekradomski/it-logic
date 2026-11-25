@@ -35,6 +35,11 @@ function SellerProductForm({ onSubmit, onCancel, loading, error }) {
       </label>
 
       <label>
+        Promocja (%)
+        <input name="discount_percent" type="number" min="0" max="100" step="1" defaultValue="0" />
+      </label>
+
+      <label>
         Zdjęcie produktu (JPG, PNG, GIF lub WebP; maks. 5 MB)
         <input
           name="image"

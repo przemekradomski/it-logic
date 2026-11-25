@@ -1,4 +1,7 @@
+from decimal import Decimal, ROUND_HALF_UP
+
 from django.db import models
+
 # Create your models here.
 
 class UserProfile(models.Model):
@@ -42,6 +45,7 @@ class SellerProduct(models.Model):
     category = models.CharField(max_length=40)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(max_length=5000, blank=True, default='')
+    discount_percent = models.PositiveSmallIntegerField(default=0)
     image = models.FileField(upload_to='seller_products/')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -53,18 +57,52 @@ class SellerProduct(models.Model):
         return self.API_ID_OFFSET + self.pk
 
     def to_api_data(self):
-        price = float(self.price)
+        price = self.price
+        discount_price = (price * (Decimal(100 - self.discount_percent) / Decimal(100))).quantize(
+            Decimal('0.01'),
+            rounding=ROUND_HALF_UP,
+        )
         return {
             'id': self.api_id,
             'name': self.name,
             'category': self.category,
             'price': f'{price:.2f} zł'.replace('.', ','),
-            'priceValue': price,
+            'priceValue': float(price),
             'description': self.description,
             'seller': self.seller.username,
+            'discountPercent': self.discount_percent,
+            'discountPrice': f'{discount_price:.2f} zł'.replace('.', ','),
+            'discountPriceValue': float(discount_price),
+            'averageRating': float(getattr(self, 'average_rating', None) or 0),
+            'reviewCount': getattr(self, 'review_count', 0) or 0,
             'image': self.image.url,
             'inStock': True,
         }
+
+
+class ProductReview(models.Model):
+    product = models.ForeignKey(
+        SellerProduct,
+        related_name='reviews',
+        on_delete=models.CASCADE,
+    )
+    user = models.ForeignKey(
+        UserProfile,
+        related_name='product_reviews',
+        on_delete=models.CASCADE,
+    )
+    rating = models.PositiveSmallIntegerField()
+    comment = models.TextField(max_length=1000)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['product', 'user'],
+                name='uniq_product_review_user',
+            ),
+        ]
 
 
 class Cart(models.Model):

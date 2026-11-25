@@ -20,9 +20,16 @@ function CheckoutPage({ cart, cartTotal, onBack }) {
                 <div key={item.id} className="checkout-item">
                   <div>
                     <strong>{item.name}</strong>
-                    <span>{item.quantity} × {item.price}</span>
+                    <span>
+                      {item.quantity} × {item.discountPercent > 0 ? item.discountPrice : item.price}
+                      {item.discountPercent > 0 && <> <del>{item.price}</del></>}
+                    </span>
                   </div>
-                  <strong>{(item.priceValue * item.quantity).toLocaleString('pl-PL', { minimumFractionDigits: 2 })} zł</strong>
+                  <strong>
+                    {((item.discountPriceValue ?? item.priceValue) * item.quantity).toLocaleString('pl-PL', {
+                      minimumFractionDigits: 2,
+                    })} zł
+                  </strong>
                 </div>
               ))}
             </div>

@@ -10,11 +10,11 @@ import AuthModal from './components/AuthModal';
 import SellerProductForm from './components/SellerProductForm';
 import SellerProducts from './components/SellerProducts';
 import AdminPanel from './pages/AdminPanel';
-import ProductDetail from './components/ProductDetail';
 import SellerProductEditModal from './components/SellerProductEditModal';
 import CheckoutPage from './pages/CheckoutPage';
+import ProductDetailPage from './pages/ProductDetailPage';
 
-const navItems = ['Laptopy', 'Komputery', 'Podzespoły', 'Monitory', 'Gaming', 'Akcesoria', 'Start home'];
+const navItems = ['Laptopy', 'Komputery', 'Podzespoły', 'Monitory', 'Gaming', 'Akcesoria', 'Start home', 'Promocje'];
 
 const roleLabels = {
   customer: 'Klient',
@@ -24,7 +24,7 @@ const roleLabels = {
 };
 
 function App() {
-  const [showCheckout, setShowCheckout] = useState(/^\/kasa\/?$/.test(window.location.pathname));
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [selectedCategory, setSelectedCategory] = useState('Laptopy');
   const [products, setProducts] = useState([]);
   const [sellerProducts, setSellerProducts] = useState([]);
@@ -34,9 +34,9 @@ function App() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showAccountPanel, setShowAccountPanel] = useState(false);
   const [showCartPanel, setShowCartPanel] = useState(false);
-  const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showSellerProductForm, setShowSellerProductForm] = useState(false);
   const [user, setUser] = useState(null);
+  const [isUserLoading, setIsUserLoading] = useState(true);
   const [cart, setCart] = useState([]);
   const [authMode, setAuthMode] = useState('login');
   const [authLoading, setAuthLoading] = useState(false);
@@ -56,24 +56,12 @@ function App() {
     confirm_password: '',
   });
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedProduct, setSelectedProduct] = useState(null);
   const [editingProduct, setEditingProduct] = useState(null);
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState('');
 
   useEffect(() => {
-    const detailMatch = window.location.pathname.match(/^\/produkt\/(\d+)\/?$/);
-    if (detailMatch) {
-      apiRequest(`/api/products/${detailMatch[1]}/`)
-        .then((data) => setSelectedProduct(data.product))
-        .catch((error) => console.error('Błąd pobierania szczegółów:', error));
-    }
-  }, []);
-
-  useEffect(() => {
-    const handlePopState = () => {
-      setShowCheckout(/^\/kasa\/?$/.test(window.location.pathname));
-    };
+    const handlePopState = () => setCurrentPath(window.location.pathname);
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
@@ -115,7 +103,8 @@ function App() {
           setSellerProductsError('');
         }
       })
-      .catch(() => setUser(null));
+      .catch(() => setUser(null))
+      .finally(() => setIsUserLoading(false));
 
     apiRequest('/api/cart/')
       .then((data) => setCart(data.items || []))
@@ -127,29 +116,64 @@ function App() {
     .toLocaleLowerCase('pl-PL')
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '');
-  const visibleProducts = products.filter((product) => {
-    if (!product.inStock) return false;
-    if (!normalizedSearchQuery) return product.category === selectedCategory;
-
+  const matchesSearch = (product) => {
     const searchableText = `${product.name} ${product.category}`
       .toLocaleLowerCase('pl-PL')
       .normalize('NFD')
       .replace(/\p{Diacritic}/gu, '');
     return searchableText.includes(normalizedSearchQuery);
-  });
-
-  const handleSelectCategory = (category) => {
-    setSelectedCategory(category);
-    setSearchQuery('');
   };
+  const visibleProducts = products.filter((product) => {
+    if (!product.inStock) return false;
+    if (!normalizedSearchQuery) return product.category === selectedCategory;
+    return matchesSearch(product);
+  });
+  const isAdminRoute = /^\/panel\/admin\/?$/.test(currentPath);
+  const isSellerRoute = /^\/panel\/sprzedawcy\/?$/.test(currentPath);
+  const isCheckoutRoute = /^\/kasa\/?$/.test(currentPath);
+  const isPromotionsRoute = /^\/promocje\/?$/.test(currentPath);
+  const productRouteMatch = currentPath.match(/^\/produkt\/(\d+)\/?$/);
+  const selectedProduct = productRouteMatch
+    ? products.find((product) => product.id === Number(productRouteMatch[1]))
+    : null;
+  const promotionalProducts = products.filter(
+    (product) => product.discountPercent > 0
+      && product.inStock
+      && (!normalizedSearchQuery || matchesSearch(product))
+  );
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const cartTotal = cart.reduce((sum, item) => sum + item.priceValue * item.quantity, 0);
+  const cartTotal = cart.reduce(
+    (sum, item) => sum + (item.discountPriceValue ?? item.priceValue) * item.quantity,
+    0
+  );
 
-  const openAdminPanel = () => {
-    setShowAdminPanel(true);
+  const navigateTo = (path) => {
+    window.history.pushState({}, '', path);
+    setCurrentPath(path);
     setShowAccountPanel(false);
     setShowCartPanel(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const openAdminPanel = () => {
+    navigateTo('/panel/admin/');
+  };
+
+  const handleOpenProduct = (product) => {
+    navigateTo(`/produkt/${product.id}/`);
+  };
+
+  const handleSelectCategory = (category) => {
+    if (category === 'Promocje') {
+      navigateTo('/promocje/');
+      setSearchQuery('');
+      return;
+    }
+
+    if (currentPath !== '/') navigateTo('/');
+    setSelectedCategory(category);
+    setSearchQuery('');
   };
 
   const handleAddToCart = async (product) => {
@@ -162,6 +186,21 @@ function App() {
     } catch (error) {
       alert(error.message || 'Nie udało się dodać produktu do koszyka.');
     }
+  };
+
+  const handleLoadProductReview = (product) => (
+    apiRequest(`/api/products/${product.id}/reviews/`)
+  );
+
+  const handleSubmitProductReview = async (product, review) => {
+    const data = await apiRequest(`/api/products/${product.id}/reviews/`, {
+      method: 'POST',
+      body: JSON.stringify(review),
+    });
+    setProducts((previous) => previous.map((item) => (
+      item.id === product.id ? data.product : item
+    )));
+    return data;
   };
 
   const handleRemoveFromCart = async (productId) => {
@@ -285,22 +324,6 @@ function App() {
     }
   };
 
-  const handleOpenProduct = async (product) => {
-    try {
-      const data = await apiRequest(`/api/products/${product.id}/`);
-      setSelectedProduct(data.product);
-      window.history.pushState({}, '', `/produkt/${product.id}`);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (error) {
-      alert(error.message);
-    }
-  };
-
-  const handleCloseProduct = () => {
-    setSelectedProduct(null);
-    window.history.pushState({}, '', '/');
-  };
-
   const handleEditProduct = async (productId, formData) => {
     setEditLoading(true);
     setEditError('');
@@ -308,7 +331,6 @@ function App() {
       const data = await apiRequest(`/api/seller/products/${productId}/update/`, { method: 'POST', body: formData });
       setProducts((previous) => previous.map((item) => item.id === productId ? data.product : item));
       setSellerProducts((previous) => previous.map((item) => item.id === productId ? data.product : item));
-      setSelectedProduct((previous) => previous?.id === productId ? data.product : previous);
       setEditingProduct(null);
     } catch (error) {
       setEditError(error.message);
@@ -340,7 +362,6 @@ function App() {
       setSellerProductsLoading(false);
       setSellerProductsError('');
       setShowAccountPanel(false);
-      setShowAdminPanel(false);
       setShowSellerProductForm(false);
     } catch (error) {
       alert(error.message || 'Nie udało się wylogować.');
@@ -363,16 +384,11 @@ function App() {
   };
 
   const handleGoToCheckout = () => {
-    setShowCartPanel(false);
-    setSelectedProduct(null);
-    setShowCheckout(true);
-    window.history.pushState({}, '', '/kasa/');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    navigateTo('/kasa/');
   };
 
   const handleBackFromCheckout = () => {
-    setShowCheckout(false);
-    window.history.pushState({}, '', '/');
+    navigateTo('/');
   };
 
   const openLoginModal = () => {
@@ -385,7 +401,7 @@ function App() {
     <>
       <Navbar
         items={navItems}
-        selectedCategory={selectedCategory}
+        selectedCategory={isPromotionsRoute ? 'Promocje' : selectedCategory}
         onSelectCategory={handleSelectCategory}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -418,14 +434,19 @@ function App() {
               Panel administratora
             </button>
           )}
+          {user.role === 'seller' && (
+            <button
+              type="button"
+              className="secondary-button full-width mb-2"
+              onClick={() => navigateTo('/panel/sprzedawcy/')}
+            >
+              Panel sprzedawcy
+            </button>
+          )}
           <button type="button" className="primary-button full-width" onClick={handleLogout}>
             Wyloguj się
           </button>
         </div>
-      )}
-
-      {showAdminPanel && user?.role === 'admin' && (
-        <AdminPanel onClose={() => setShowAdminPanel(false)} />
       )}
 
       {showCartPanel && (
@@ -443,7 +464,10 @@ function App() {
                 <div key={item.id} className="cart-item-row">
                   <div className="cart-item-details">
                     <strong>{item.name}</strong>
-                    <span>{item.quantity} × {item.price}</span>
+                    <span>
+                      {item.quantity} × {item.discountPercent > 0 ? item.discountPrice : item.price}
+                      {item.discountPercent > 0 && <> <del>{item.price}</del></>}
+                    </span>
                   </div>
                   <button
                     type="button"
@@ -471,82 +495,140 @@ function App() {
         </div>
       )}
 
-      {user?.role === 'seller' && (
-        <>
-          <div className="seller-banner">
-            <div className="container d-flex justify-content-between align-items-center gap-3 flex-wrap py-3">
-              <span>Jesteś zalogowany jako sprzedawca.</span>
-              <button
-                type="button"
-                className="primary-button"
-                onClick={() => {
-                  setProductFormError('');
-                  setShowSellerProductForm((previous) => !previous);
-                }}
-              >
-                Wystaw na sprzedaż
-              </button>
-            </div>
-            {showSellerProductForm && (
-              <div className="container pb-4">
-                <div className="admin-panel">
-                  <h3>Dodaj produkt</h3>
-                  <SellerProductForm
-                    onSubmit={handleCreateProduct}
-                    onCancel={() => setShowSellerProductForm(false)}
-                    loading={productFormLoading}
-                    error={productFormError}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-          <SellerProducts
-            products={sellerProducts}
-            loading={sellerProductsLoading}
-            error={sellerProductsError}
-            onDelete={handleDeleteProduct}
-            onEdit={(product) => { setEditError(''); setEditingProduct(product); }}
-          />
-        </>
-      )}
-
-
-      {showCheckout ? (
+      {isCheckoutRoute ? (
         <CheckoutPage
           cart={cart}
           cartTotal={cartTotal}
           onBack={handleBackFromCheckout}
         />
-      ) : selectedProduct ? (
-        <ProductDetail
-          product={selectedProduct}
-          onClose={handleCloseProduct}
-          onAddToCart={handleAddToCart}
-          canEdit={user?.role === 'seller' && sellerProducts.some((item) => item.id === selectedProduct.id)}
-          onEdit={setEditingProduct}
-        />
-      ) : (
-        <><Hero />
-      <Categories onSelectCategory={handleSelectCategory} />
-
-      {loading ? (
-        <div className="container py-5 text-center text-muted">Ładowanie produktów...</div>
-      ) : (
+      ) : productRouteMatch ? (
+        loading ? (
+          <main className="container py-5 text-center text-muted" role="status">
+            Ładowanie produktu...
+          </main>
+        ) : selectedProduct ? (
+          <ProductDetailPage
+            product={selectedProduct}
+            user={user}
+            isUserLoading={isUserLoading}
+            onBack={() => navigateTo('/')}
+            onRequireLogin={openLoginModal}
+            onAddToCart={handleAddToCart}
+            onLoadReview={handleLoadProductReview}
+            onSubmitReview={handleSubmitProductReview}
+            canEdit={user?.role === 'seller' && sellerProducts.some((item) => item.id === selectedProduct.id)}
+            onEdit={(product) => {
+              setEditError('');
+              setEditingProduct(product);
+            }}
+          />
+        ) : (
+          <main className="container py-5 text-center">
+            <h1 className="h3">Nie znaleziono produktu</h1>
+            <button type="button" className="secondary-button mt-3" onClick={() => navigateTo('/')}>
+              Wróć do sklepu
+            </button>
+          </main>
+        )
+      ) : isPromotionsRoute ? (
         <Products
-          products={visibleProducts}
-          selectedCategory={selectedCategory}
+          products={promotionalProducts}
+          selectedCategory="Promocje"
+          title="Promocje"
           searchQuery={searchQuery}
-          fallbackMessage={searchQuery.trim()
-            ? 'Nie znaleziono produktów pasujących do wyszukiwania.'
-            : 'Brak na magazynie'}
+          fallbackMessage="Obecnie nie ma produktów w promocji."
+          user={user}
+          isUserLoading={isUserLoading}
+          onRequireLogin={openLoginModal}
           onAddToCart={handleAddToCart}
+          onLoadReview={handleLoadProductReview}
+          onSubmitReview={handleSubmitProductReview}
           onOpenProduct={handleOpenProduct}
         />
+      ) : isAdminRoute ? (
+        isUserLoading ? (
+          <main className="container py-5" role="status">Sprawdzanie dostępu...</main>
+        ) : user?.role === 'admin' ? (
+          <AdminPanel onClose={() => navigateTo('/')} />
+        ) : (
+          <StaffOnlyNotice user={user} onLogin={openLoginModal} />
+        )
+      ) : isSellerRoute ? (
+        isUserLoading ? (
+          <main className="container py-5" role="status">Sprawdzanie dostępu...</main>
+        ) : user?.role === 'seller' ? (
+          <main className="container py-4">
+            <div className="seller-banner">
+              <div className="d-flex justify-content-between align-items-center gap-3 flex-wrap py-3">
+                <div>
+                  <p className="eyebrow mb-1">Zarządzanie sklepem</p>
+                  <h1 className="h2 mb-0">Panel sprzedawcy</h1>
+                </div>
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => {
+                    setProductFormError('');
+                    setShowSellerProductForm((previous) => !previous);
+                  }}
+                >
+                  Wystaw na sprzedaż
+                </button>
+              </div>
+              {showSellerProductForm && (
+                <div className="pb-4">
+                  <div className="admin-panel">
+                    <h3>Dodaj produkt</h3>
+                    <SellerProductForm
+                      onSubmit={handleCreateProduct}
+                      onCancel={() => setShowSellerProductForm(false)}
+                      loading={productFormLoading}
+                      error={productFormError}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            <SellerProducts
+              products={sellerProducts}
+              loading={sellerProductsLoading}
+              error={sellerProductsError}
+              onDelete={handleDeleteProduct}
+              onEdit={(product) => {
+                setEditError('');
+                setEditingProduct(product);
+              }}
+            />
+          </main>
+        ) : (
+          <StaffOnlyNotice user={user} onLogin={openLoginModal} />
+        )
+      ) : (
+        <>
+          <Hero onNavigateCategory={handleSelectCategory} />
+          <Categories onSelectCategory={handleSelectCategory} />
+
+          {loading ? (
+            <div className="container py-5 text-center text-muted">Ładowanie produktów...</div>
+          ) : (
+            <Products
+              products={visibleProducts}
+              selectedCategory={selectedCategory}
+              searchQuery={searchQuery}
+              fallbackMessage={searchQuery.trim()
+                ? 'Nie znaleziono produktów pasujących do wyszukiwania.'
+                : 'Brak na magazynie'}
+              user={user}
+              isUserLoading={isUserLoading}
+              onRequireLogin={openLoginModal}
+              onAddToCart={handleAddToCart}
+              onLoadReview={handleLoadProductReview}
+              onSubmitReview={handleSubmitProductReview}
+              onOpenProduct={handleOpenProduct}
+            />
+          )}
+        </>
       )}
-
-
-      </> )}
 
       <Foother />
       {editingProduct && (
@@ -579,6 +661,22 @@ function App() {
         />
       )}
     </>
+  );
+}
+
+function StaffOnlyNotice({ user, onLogin }) {
+  return (
+    <main className="container py-5">
+      <div className="admin-panel staff-only-notice">
+        <h1 className="h3">Brak dostępu</h1>
+        <p role="alert">Ta strona jest dostępna tylko dla pracowników sklepu.</p>
+        {!user && (
+          <button type="button" className="primary-button" onClick={onLogin}>
+            Zaloguj się
+          </button>
+        )}
+      </div>
+    </main>
   );
 }
 

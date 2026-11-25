@@ -158,6 +158,7 @@ class AdminSellerApiTests(TransactionTestCase):
                         'name': 'Laptop sprzedawcy',
                         'category': 'Laptopy',
                         'price': '2499.99',
+                        'discount_percent': '15',
                         'image': SimpleUploadedFile(
                             'laptop.jpg',
                             b'\xff\xd8\xff\xdbsample-jpeg',
@@ -169,7 +170,10 @@ class AdminSellerApiTests(TransactionTestCase):
         self.assertEqual(response.status_code, 201)
         product = SellerProduct.objects.get(name='Laptop sprzedawcy')
         self.assertEqual(product.seller, self.seller)
+        self.assertEqual(product.discount_percent, 15)
         self.assertEqual(response.json()['product']['id'], 1_000_000 + product.pk)
+        self.assertEqual(response.json()['product']['discountPercent'], 15)
+        self.assertEqual(response.json()['product']['discountPrice'], '2124,99 zł')
         product_id = response.json()['product']['id']
         self.assertIn(
             product_id,
@@ -183,6 +187,28 @@ class AdminSellerApiTests(TransactionTestCase):
         )
         self.assertEqual(cart_response.status_code, 200)
         self.assertEqual(cart_response.json()['items'][0]['id'], product_id)
+        self.assertEqual(cart_response.json()['items'][0]['discountPrice'], '2124,99 zł')
+
+    def test_seller_cannot_create_product_with_invalid_discount_percentage(self):
+        self._login_as(self.seller)
+
+        response = self.client.post(
+            '/api/seller/products/',
+            {
+                'name': 'Laptop z błędną promocją',
+                'category': 'Laptopy',
+                'price': '100',
+                'discount_percent': '101',
+                'image': SimpleUploadedFile(
+                    'laptop.jpg',
+                    b'\xff\xd8\xff\xdbsample-jpeg',
+                    content_type='image/jpeg',
+                ),
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(SellerProduct.objects.filter(name='Laptop z błędną promocją').exists())
 
     def test_only_sellers_can_create_products(self):
         self._login_as(self.admin)

@@ -15,7 +15,12 @@ function SellerProducts({ products, loading, error, onDelete, onEdit }) {
                   <img src={product.image} alt="" />
                   <div>
                     <strong>{product.name}</strong>
-                    <span>{product.category} · {product.price}</span>
+                    <span>
+                      {product.category} · {product.price}
+                      {product.discountPercent > 0
+                        ? ` · Promocja ${product.discountPercent}% — ${product.discountPrice}`
+                        : ''}
+                    </span>
                   </div>
                 </div>
                 <div className="d-flex gap-2">

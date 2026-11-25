@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('sklep_komputerowy', '0003_expand_user_role_column'),
+        ('sklep_komputerowy', '0005_productreview'),
     ]
 
     operations = [
