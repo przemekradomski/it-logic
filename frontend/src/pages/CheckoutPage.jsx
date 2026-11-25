@@ -1,0 +1,42 @@
+function CheckoutPage({ cart, cartTotal, onBack }) {
+  const formattedTotal = cartTotal.toLocaleString('pl-PL', {
+    minimumFractionDigits: 2,
+  });
+
+  return (
+    <main className="container py-5 checkout-main">
+      <div className="checkout-page">
+        <div className="checkout-header">
+          <h1>Kasa</h1>
+          <button type="button" className="secondary-button" onClick={onBack}>
+            Wróć do sklepu
+          </button>
+        </div>
+
+        {cart.length > 0 ? (
+          <>
+            <div className="checkout-items">
+              {cart.map((item) => (
+                <div key={item.id} className="checkout-item">
+                  <div>
+                    <strong>{item.name}</strong>
+                    <span>{item.quantity} × {item.price}</span>
+                  </div>
+                  <strong>{(item.priceValue * item.quantity).toLocaleString('pl-PL', { minimumFractionDigits: 2 })} zł</strong>
+                </div>
+              ))}
+            </div>
+            <div className="checkout-total">
+              <span>Do zapłaty</span>
+              <strong>{formattedTotal} zł</strong>
+            </div>
+          </>
+        ) : (
+          <p className="empty-copy">Twój koszyk jest pusty.</p>
+        )}
+      </div>
+    </main>
+  );
+}
+
+export default CheckoutPage;

@@ -12,6 +12,7 @@ import SellerProducts from './components/SellerProducts';
 import AdminPanel from './pages/AdminPanel';
 import ProductDetail from './components/ProductDetail';
 import SellerProductEditModal from './components/SellerProductEditModal';
+import CheckoutPage from './pages/CheckoutPage';
 
 const navItems = ['Laptopy', 'Komputery', 'Podzespoły', 'Monitory', 'Gaming', 'Akcesoria', 'Start home'];
 
@@ -23,6 +24,7 @@ const roleLabels = {
 };
 
 function App() {
+  const [showCheckout, setShowCheckout] = useState(/^\/kasa\/?$/.test(window.location.pathname));
   const [selectedCategory, setSelectedCategory] = useState('Laptopy');
   const [products, setProducts] = useState([]);
   const [sellerProducts, setSellerProducts] = useState([]);
@@ -66,6 +68,14 @@ function App() {
         .then((data) => setSelectedProduct(data.product))
         .catch((error) => console.error('Błąd pobierania szczegółów:', error));
     }
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setShowCheckout(/^\/kasa\/?$/.test(window.location.pathname));
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   useEffect(() => {
@@ -352,6 +362,19 @@ function App() {
     setShowAccountPanel(false);
   };
 
+  const handleGoToCheckout = () => {
+    setShowCartPanel(false);
+    setSelectedProduct(null);
+    setShowCheckout(true);
+    window.history.pushState({}, '', '/kasa/');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleBackFromCheckout = () => {
+    setShowCheckout(false);
+    window.history.pushState({}, '', '/');
+  };
+
   const openLoginModal = () => {
     setAuthError('');
     setAuthSuccess('');
@@ -442,7 +465,7 @@ function App() {
             <strong>{cartTotal.toLocaleString('pl-PL', { minimumFractionDigits: 2 })} zł</strong>
           </div>
 
-          <button type="button" className="primary-button full-width">
+          <button type="button" className="primary-button full-width" onClick={handleGoToCheckout}>
             Przejdź do kasy
           </button>
         </div>
@@ -489,7 +512,13 @@ function App() {
       )}
 
 
-      {selectedProduct ? (
+      {showCheckout ? (
+        <CheckoutPage
+          cart={cart}
+          cartTotal={cartTotal}
+          onBack={handleBackFromCheckout}
+        />
+      ) : selectedProduct ? (
         <ProductDetail
           product={selectedProduct}
           onClose={handleCloseProduct}

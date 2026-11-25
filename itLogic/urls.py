@@ -44,6 +44,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', dashboard, name='home'),
     path('dashboard/', dashboard, name='dashboard'),
+    path('kasa/', dashboard, name='checkout'),
     path('produkt/<int:product_id>/', dashboard, name='product_detail_page'),
     path('api/products/', api_products, name='api_products'),
     path('api/seller/products/', api_seller_create_product, name='api_seller_create_product'),

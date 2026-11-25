@@ -4,7 +4,7 @@ function Foother() {
       style={{
         background: '#111827',
         color: '#f9fafb',
-        marginTop: '40px',
+        marginTop: 'auto',
         padding: '32px 24px 24px',
       }}
     >
@@ -27,7 +27,7 @@ function Foother() {
         <div>
           <h4 style={{ margin: '0 0 12px', fontSize: '18px' }}>Kontakt</h4>
           <p style={{ margin: '0 0 8px', color: '#d1d5db' }}>Telefon: 22 786 75 15</p>
-          <p style={{ margin: 0, color: '#d1d5db' }}>Adres: tradzymin Stary Rynek 18</p>
+          <p style={{ margin: 0, color: '#d1d5db' }}>Adres: Radzymin Stary Rynek 18</p>
         </div>
 
         <div>
