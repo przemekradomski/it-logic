@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.conf import settings
 from django.urls import path
 from django.conf.urls.static import static
+from django.views.static import serve
 from sklep_komputerowy.cart_views import api_cart, api_cart_add, api_cart_remove
 from sklep_komputerowy.views import (
     dashboard,
@@ -43,6 +44,13 @@ from sklep_komputerowy.auth_views import (
 )
 
 urlpatterns = [
+    # Service workers need to live at the site root to control the whole app.
+    path(
+        'service-worker.js',
+        serve,
+        {'path': 'service-worker.js', 'document_root': settings.BASE_DIR / 'static'},
+        name='service_worker',
+    ),
     path('admin/', admin.site.urls),
     path('', dashboard, name='home'),
     path('dashboard/', dashboard, name='dashboard'),

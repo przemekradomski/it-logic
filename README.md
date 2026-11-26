@@ -34,6 +34,10 @@ docker compose up --build
 
 Sklep będzie dostępny pod adresem <http://localhost:8000>. Kontener aplikacji zawiera Python 3.15, Django i Node.js 22; MariaDB działa w osobnym kontenerze. Dane bazy oraz przesłane pliki są przechowywane w wolumenach Dockera.
 
+## PWA i tryb offline
+
+Stronę można zainstalować z menu przeglądarki jako aplikację. Po pierwszym pełnym wczytaniu strona główna oraz pliki interfejsu zapisują się na urządzeniu i pozwalają otworzyć sklep bez połączenia z internetem. W trybie offline nie działają dane produktów, logowanie ani koszyk, ponieważ te funkcje wymagają połączenia z serwerem. Instalacja działa przez HTTPS albo na `localhost`.
+
 Aby utworzyć konto administratora aplikacji, w drugim terminalu uruchom:
 
 ```powershell
