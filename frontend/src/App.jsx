@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import './App.css';
 import { apiRequest } from './api';
 import Navbar from './components/Navbar';
@@ -188,9 +188,9 @@ function App() {
     }
   };
 
-  const handleLoadProductReview = (product) => (
+  const handleLoadProductReview = useCallback((product) => (
     apiRequest(`/api/products/${product.id}/reviews/`)
-  );
+  ), []);
 
   const handleSubmitProductReview = async (product, review) => {
     const data = await apiRequest(`/api/products/${product.id}/reviews/`, {

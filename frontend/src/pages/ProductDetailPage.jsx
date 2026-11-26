@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import ProductRating from '../components/ProductRating';
 import ProductReviewForm from '../components/ProductReviewForm';
 
@@ -14,6 +15,35 @@ function ProductDetailPage({
   onEdit,
 }) {
   const isDiscounted = product.discountPercent > 0;
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewsError, setReviewsError] = useState('');
+  const [reviewsReloadKey, setReviewsReloadKey] = useState(0);
+
+  useEffect(() => {
+    let isCurrent = true;
+    setReviewsLoading(true);
+    setReviewsError('');
+
+    onLoadReview(product)
+      .then((data) => {
+        if (isCurrent) setReviews(data.reviews || []);
+      })
+      .catch((error) => {
+        if (isCurrent) setReviewsError(error.message || 'Nie udało się pobrać opinii.');
+      })
+      .finally(() => {
+        if (isCurrent) setReviewsLoading(false);
+      });
+
+    return () => { isCurrent = false; };
+  }, [product.id, onLoadReview, reviewsReloadKey]);
+
+  const handleSubmitReview = async (reviewProduct, review) => {
+    const data = await onSubmitReview(reviewProduct, review);
+    setReviewsReloadKey((current) => current + 1);
+    return data;
+  };
 
   return (
     <main className="container py-5">
@@ -66,8 +96,36 @@ function ProductDetailPage({
               isUserLoading={isUserLoading}
               onRequireLogin={onRequireLogin}
               onLoadReview={onLoadReview}
-              onSubmitReview={onSubmitReview}
+              onSubmitReview={handleSubmitReview}
             />
+          </section>
+
+          <section className="product-detail-reviews" aria-labelledby="product-reviews-heading">
+            <h2 id="product-reviews-heading" className="h5">Opinie o produkcie</h2>
+            {reviewsLoading ? (
+              <p className="review-feedback" role="status">Ładowanie opinii...</p>
+            ) : reviewsError ? (
+              <p className="review-feedback review-error" role="alert">{reviewsError}</p>
+            ) : reviews.length === 0 ? (
+              <p className="review-feedback">Ten produkt nie ma jeszcze opinii.</p>
+            ) : (
+              <ul className="product-review-list">
+                {reviews.map((review, index) => (
+                  <li className="product-review-card" key={`${review.author}-${review.createdAt}-${index}`}>
+                    <div className="product-review-card-header">
+                      <strong>{review.author}</strong>
+                      <time dateTime={review.createdAt}>
+                        {new Date(review.createdAt).toLocaleDateString('pl-PL')}
+                      </time>
+                    </div>
+                    <p className="product-review-stars" aria-label={`Ocena: ${review.rating} na 5`}>
+                      {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
+                    </p>
+                    <p className="product-review-comment">{review.comment}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         </div>
       </article>

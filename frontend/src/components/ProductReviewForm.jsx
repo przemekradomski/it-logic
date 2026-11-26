@@ -76,16 +76,28 @@ function ProductReviewForm({
 
       {isReviewOpen && (
         <form className="review-form" onSubmit={handleReviewSubmit}>
-          <label htmlFor={`review-rating-${product.id}`}>Ocena</label>
-          <select
-            id={`review-rating-${product.id}`}
-            value={rating}
-            onChange={(event) => setRating(Number(event.target.value))}
-          >
-            {[5, 4, 3, 2, 1].map((value) => (
-              <option value={value} key={value}>{value} {value === 1 ? 'gwiazdka' : 'gwiazdek'}</option>
-            ))}
-          </select>
+          <fieldset className="review-rating-fieldset">
+            <legend>Ocena</legend>
+            <div className="review-rating-options">
+              {[1, 2, 3, 4, 5].map((value) => (
+                <label className="review-rating-option" key={value}>
+                  <input
+                    type="radio"
+                    name={`review-rating-${product.id}`}
+                    value={value}
+                    checked={rating === value}
+                    onChange={() => setRating(value)}
+                  />
+                  <span className={`review-rating-star${rating >= value ? ' is-selected' : ''}`} aria-hidden="true">
+                    <i className={`bi ${rating >= value ? 'bi-star-fill' : 'bi-star'}`} />
+                  </span>
+                  <span className="visually-hidden">
+                    {value} {value === 1 ? 'gwiazdka' : value < 5 ? 'gwiazdki' : 'gwiazdek'}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
 
           <label htmlFor={`review-comment-${product.id}`}>Twoja opinia</label>
           <textarea

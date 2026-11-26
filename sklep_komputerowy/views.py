@@ -90,22 +90,39 @@ def _current_profile(request):
 
 @require_http_methods(['GET', 'POST'])
 def api_product_reviews(request, product_id):
-    profile, error = _current_profile(request)
-    if error:
-        return error
-
     seller_product_id = product_id - SellerProduct.API_ID_OFFSET
     product = SellerProduct.objects.filter(pk=seller_product_id).first()
     if product is None:
         return JsonResponse({'error': 'Nie znaleziono produktu.'}, status=404)
 
     if request.method == 'GET':
-        review = ProductReview.objects.filter(product=product, user=profile).first()
-        review_data = None if review is None else {
-            'rating': review.rating,
-            'comment': review.comment,
-        }
-        return JsonResponse({'review': review_data})
+        profile_id = request.session.get(AUTH_SESSION_KEY)
+        profile = UserProfile.objects.filter(pk=profile_id).first() if profile_id else None
+        if profile_id and profile is None:
+            request.session.pop(AUTH_SESSION_KEY, None)
+
+        reviews = ProductReview.objects.filter(product=product).select_related('user')
+        review_data = [
+            {
+                'rating': review.rating,
+                'comment': review.comment,
+                'author': review.user.username,
+                'createdAt': review.created_at.isoformat(),
+            }
+            for review in reviews
+        ]
+        own_review = ProductReview.objects.filter(product=product, user=profile).first() if profile else None
+        return JsonResponse({
+            'reviews': review_data,
+            'review': None if own_review is None else {
+                'rating': own_review.rating,
+                'comment': own_review.comment,
+            },
+        })
+
+    profile, error = _current_profile(request)
+    if error:
+        return error
 
     try:
         data = json.loads(request.body)
