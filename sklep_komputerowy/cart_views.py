@@ -56,11 +56,8 @@ def _cart_data(cart=None, guest_items=None):
                 items.append({**product.to_api_data(), 'quantity': quantity})
     elif cart is not None:
         cart_items = list(CartItem.objects.filter(cart=cart).order_by('cart_item_id'))
-        products = _seller_products_by_ids(item.product_id for item in cart_items)
         for item in cart_items:
-            product = products.get(item.product_id)
-            if product is not None:
-                items.append({**product.to_api_data(), 'quantity': item.quantity})
+            items.append({**item.product.to_api_data(), 'quantity': item.quantity})
 
     return {
         'items': items,
@@ -97,15 +94,19 @@ def merge_guest_cart(request, profile):
 
     with transaction.atomic():
         cart = _get_cart(profile, create=True, lock=True)
-        for product_id, quantity in guest_items.items():
+        products = _seller_products_by_ids(guest_items)
+        for api_product_id, quantity in guest_items.items():
+            product = products.get(api_product_id)
+            if product is None:
+                continue
             item = CartItem.objects.select_for_update().filter(
                 cart=cart,
-                product_id=product_id,
+                product_id=product.pk,
             ).first()
             if item is None:
                 CartItem.objects.create(
                     cart=cart,
-                    product_id=product_id,
+                    product=product,
                     quantity=quantity,
                 )
             else:
@@ -158,10 +159,10 @@ def api_cart_add(request):
         cart = _get_cart(profile, create=True, lock=True)
         item = CartItem.objects.select_for_update().filter(
             cart=cart,
-            product_id=product_id,
+            product_id=product.pk,
         ).first()
         if item is None:
-            CartItem.objects.create(cart=cart, product_id=product_id, quantity=1)
+            CartItem.objects.create(cart=cart, product=product, quantity=1)
         else:
             item.quantity += 1
             item.save(update_fields=['quantity'])
@@ -186,12 +187,16 @@ def api_cart_remove(request, product_id):
         request.session.modified = True
         return JsonResponse(_cart_data(guest_items=guest_items))
 
+    product = _seller_products_by_ids([product_id]).get(product_id)
+    if product is None:
+        return JsonResponse({'error': 'Produkt nie znajduje się w koszyku.'}, status=404)
+
     with transaction.atomic():
         cart = _get_cart(profile, lock=True)
         if cart is None:
             return JsonResponse({'error': 'Produkt nie znajduje się w koszyku.'}, status=404)
 
-        deleted, _ = CartItem.objects.filter(cart=cart, product_id=product_id).delete()
+        deleted, _ = CartItem.objects.filter(cart=cart, product_id=product.pk).delete()
         if not deleted:
             return JsonResponse({'error': 'Produkt nie znajduje się w koszyku.'}, status=404)
 

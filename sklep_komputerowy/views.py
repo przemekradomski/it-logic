@@ -326,7 +326,7 @@ def api_seller_delete_product(request, product_id):
 
         image_storage = product.image.storage
         image_name = product.image.name
-        CartItem.objects.filter(product_id=product.api_id).delete()
+        CartItem.objects.filter(product_id=product.pk).delete()
         product.delete()
 
     if image_name:

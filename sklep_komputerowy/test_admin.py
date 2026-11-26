@@ -79,7 +79,14 @@ class AdminSellerApiTests(TransactionTestCase):
         self.assertEqual(created_seller.role, 'seller')
         self.assertTrue(check_password('seller-password', created_seller.password))
         cart = Cart.objects.create(user=created_seller)
-        cart_item = CartItem.objects.create(cart=cart, product_id=1, quantity=1)
+        product = SellerProduct.objects.create(
+            seller=created_seller,
+            name='Testowy produkt',
+            category='Akcesoria',
+            price='10.00',
+            image='seller_products/test.jpg',
+        )
+        cart_item = CartItem.objects.create(cart=cart, product=product, quantity=1)
 
         delete_response = self.client.delete(
             f'/api/admin/sellers/{created_seller.pk}/delete/'
@@ -89,6 +96,27 @@ class AdminSellerApiTests(TransactionTestCase):
         self.assertFalse(UserProfile.objects.filter(pk=created_seller.pk).exists())
         self.assertFalse(Cart.objects.filter(pk=cart.pk).exists())
         self.assertFalse(CartItem.objects.filter(pk=cart_item.pk).exists())
+
+    def test_cart_add_stores_database_product_id_and_returns_public_id(self):
+        product = SellerProduct.objects.create(
+            seller=self.seller,
+            name='Produkt do koszyka',
+            category='Akcesoria',
+            price='19.99',
+            image='seller_products/cart-test.jpg',
+        )
+        self._login_as(self.seller)
+
+        response = self.client.post(
+            '/api/cart/items/',
+            data=json.dumps({'product_id': product.api_id}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        item = CartItem.objects.get(product=product)
+        self.assertEqual(item.product_id, product.pk)
+        self.assertEqual(response.json()['items'][0]['id'], product.api_id)
 
     def test_admin_cannot_delete_non_seller_account(self):
         self._login_as(self.admin)
@@ -262,7 +290,7 @@ class AdminSellerApiTests(TransactionTestCase):
 
                 CartItem.objects.create(
                     cart=Cart.objects.create(user=self.seller),
-                    product_id=products[0].api_id,
+                    product=products[0],
                     quantity=1,
                 )
                 image_path = products[0].image.path
@@ -272,6 +300,6 @@ class AdminSellerApiTests(TransactionTestCase):
 
                 self.assertEqual(own_product_response.status_code, 200)
                 self.assertFalse(SellerProduct.objects.filter(pk=products[0].pk).exists())
-                self.assertFalse(CartItem.objects.filter(product_id=products[0].api_id).exists())
+                self.assertFalse(CartItem.objects.filter(product_id=products[0].pk).exists())
                 self.assertFalse(os.path.exists(image_path))
                 self.assertTrue(SellerProduct.objects.filter(pk=products[1].pk).exists())

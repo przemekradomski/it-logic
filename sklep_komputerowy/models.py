@@ -129,7 +129,15 @@ class CartItem(models.Model):
         related_name='items',
         on_delete=models.DO_NOTHING,
     )
-    product_id = models.IntegerField()
+    # cart_items.product_id must contain the real SellerProduct primary key.
+    # The public API adds API_ID_OFFSET to avoid collisions in URLs; that
+    # display ID must never be written into this foreign-key column.
+    product = models.ForeignKey(
+        SellerProduct,
+        db_column='product_id',
+        related_name='cart_items',
+        on_delete=models.CASCADE,
+    )
     quantity = models.PositiveIntegerField(default=1)
     added_at = models.DateTimeField(null=True, blank=True)
 
