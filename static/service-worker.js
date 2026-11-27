@@ -1,4 +1,4 @@
-const CACHE_NAME = 'it-logic-pwa-v2'
+const CACHE_NAME = 'it-logic-pwa-v4'
 const APP_SHELL = '/'
 const OFFLINE_FILES = [
   APP_SHELL,

@@ -19,6 +19,7 @@ from django.conf import settings
 from django.urls import path
 from django.conf.urls.static import static
 from django.views.static import serve
+from django.shortcuts import render
 from sklep_komputerowy.cart_views import api_cart, api_cart_add, api_cart_remove
 from sklep_komputerowy.views import (
     dashboard,
@@ -95,3 +96,17 @@ urlpatterns = [
     path('api/cart/items/', api_cart_add, name='api_cart_add'),
     path('api/cart/items/<int:product_id>/', api_cart_remove, name='api_cart_remove'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+
+def page_not_found(request, exception=None):
+    return render(request, '404.html', status=404)
+
+
+def frontend_fallback(request, unmatched_path):
+    # Pass unmatched browser paths to React, which renders its own 404 page.
+    return dashboard(request)
+
+
+urlpatterns.append(path('<path:unmatched_path>', frontend_fallback, name='frontend_fallback'))
+
+handler404 = page_not_found

@@ -4,6 +4,49 @@ body {
   margin: 0;
 }
 
+.not-found-layout {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+.not-found-page {
+  display: grid;
+  min-height: 320px;
+  flex: 1;
+  place-items: center;
+  padding: 32px 20px;
+  background: #f8f9fc;
+  color: #111;
+  text-align: center;
+}
+
+.not-found-page h1 {
+  margin: 0 0 12px;
+  color: #dc2626;
+  font-size: clamp(2.5rem, 8vw, 4rem);
+}
+
+.not-found-page p {
+  margin: 0;
+  color: #111;
+  font-size: clamp(1rem, 3vw, 1.25rem);
+}
+
+.not-found-home-button {
+  margin-top: 24px;
+  border: 0;
+  border-radius: 8px;
+  padding: 12px 20px;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 600;
+}
+
+.not-found-home-button:hover {
+  background: #1d4ed8;
+}
+
 .top-bar {
   background: #171a27;
   color: white;

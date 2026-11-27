@@ -13,6 +13,7 @@ import AdminPanel from './pages/AdminPanel';
 import SellerProductEditModal from './components/SellerProductEditModal';
 import CheckoutPage from './pages/CheckoutPage';
 import ProductDetailPage from './pages/ProductDetailPage';
+import NotFoundPage from './pages/NotFoundPage';
 
 const navItems = ['Laptopy', 'Komputery', 'Podzespoły', 'Monitory', 'Gaming', 'Akcesoria', 'Start home', 'Promocje'];
 
@@ -133,6 +134,13 @@ function App() {
   const isCheckoutRoute = /^\/kasa\/?$/.test(currentPath);
   const isPromotionsRoute = /^\/promocje\/?$/.test(currentPath);
   const productRouteMatch = currentPath.match(/^\/produkt\/(\d+)\/?$/);
+  const isKnownRoute = /^\/?$/.test(currentPath)
+    || /^\/dashboard\/?$/.test(currentPath)
+    || isAdminRoute
+    || isSellerRoute
+    || isCheckoutRoute
+    || isPromotionsRoute
+    || Boolean(productRouteMatch);
   const selectedProduct = productRouteMatch
     ? products.find((product) => product.id === Number(productRouteMatch[1]))
     : null;
@@ -147,6 +155,8 @@ function App() {
     (sum, item) => sum + (item.discountPriceValue ?? item.priceValue) * item.quantity,
     0
   );
+
+  const isNotFound = !isKnownRoute || (productRouteMatch && !loading && !selectedProduct);
 
   const navigateTo = (path) => {
     window.history.pushState({}, '', path);
@@ -396,6 +406,10 @@ function App() {
     setAuthSuccess('');
     setShowLoginModal(true);
   };
+
+  if (isNotFound) {
+    return <NotFoundPage />;
+  }
 
   return (
     <>
